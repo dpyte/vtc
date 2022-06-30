@@ -1,12 +1,7 @@
-use std::{fmt, fs};
-use std::fmt::Formatter;
+use std::fmt;
 use std::fs::File;
-use std::path::Path;
-use std::process::id;
+use std::fmt::Formatter;
 use std::io::{Error, Read};
-
-static ALPHANUMERIC: &'static str= "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
-static NUMERIC: &'static str = "0123456789";
 
 #[inline]
 fn str_peek(buff: &String, c_idx: &usize) -> char {
@@ -20,20 +15,24 @@ fn str_peek(buff: &String, c_idx: &usize) -> char {
 #[inline]
 fn check_for_special_chars(c: char) -> bool {
 	let check = match c {
-		':' => true,
-		'-' => true,
-		',' => true,
-		']' => true,
-		'[' => true,
-		')' => true,
-		'(' => true,
-		'{' => true,
-		'}' => true,
-		'.' => true,
+		':' | '-' | ',' | ']' | '[' | ')'
+		| '(' | '{' | '}' | '.' => true,
 		_   => false,
 	};
 	check
 }
+
+/*
+	println!("Token  \t\tValue\n---------------------");
+	for tok in &tokens {
+		let value: String = match tok {
+			TokenKind::Literal(l) => l.clone().value,
+			TokenKind::Err(e) => e.clone().msg,
+			_ => "".to_string(),
+		};
+		println!("{:?}\t\t{}", tok, value);
+	}
+*/
 
 #[derive(PartialEq, Clone)]
 pub enum LitKind {
@@ -43,6 +42,22 @@ pub enum LitKind {
 	Null,
 	Bin,
 	Hex,
+	Int,
+}
+
+impl fmt::Debug for LitKind {
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		let l_value = match *self {
+			LitKind::String => {"String"},
+			LitKind::Float  => {"Float" },
+			LitKind::Bool   => {"Bool"  },
+			LitKind::Null   => {"Null"  },
+			LitKind::Bin    => {"Bin"   },
+			LitKind::Hex    => {"Hex"   },
+			LitKind::Int    => {"Int"   }
+		};
+		write!(f, "{}", l_value)
+	}
 }
 
 #[derive(PartialEq, Clone)]
@@ -52,7 +67,7 @@ pub struct Lit {
 }
 
 #[derive(PartialEq, Clone)]
-struct TokErr {
+pub struct TokErr {
 	pub msg: String,
 }
 
@@ -251,10 +266,10 @@ impl Tokens {
 					idx = skip_to;
 					TokenKind::Hash
 				}
-				/// Assignment Error
+				//// Assignment Error
 				'=' => {
 					err = true;
-					let mut err_block = Self::generate_err_block(&data, &idx, " Use ':=' for assignment operations");
+					let err_block = Self::generate_err_block(&data, &idx, " Use ':=' for assignment operations");
 					TokenKind::Err(TokErr::new(err_block))
 				}
 				//// AlphaNumeric + Misc
@@ -281,11 +296,7 @@ impl Tokens {
 		}
 
 		// Cleanup
-		if !err {
-			self.tokens.retain(|r| *r != TokenKind::Blank);
-			for x in &self.data { println!("=> {}", x); }
-			println!("Tokens: {:?}", self.tokens);
-		}
+		if !err { self.tokens.retain(|r| *r != TokenKind::Blank); }
 		Ok(())
 	}
 
@@ -295,9 +306,7 @@ impl Tokens {
 	#[inline]
 	fn parse_comment_block(data: &String, mut idx: usize) -> (usize, String) {
 		let c_idx = idx.clone();
-		while data.chars().nth(idx).unwrap() != '\n' {
-			idx += 1;
-		}
+		while data.chars().nth(idx).unwrap() != '\n' { idx += 1; }
 		let skip_by = idx - c_idx;
 		let comment_block: String = data.chars().skip(c_idx).take(skip_by).collect();
 		(idx, comment_block)
@@ -328,12 +337,12 @@ impl Tokens {
 		let mut c_idx = idx.clone();
 		let mut token = TokenKind::EOF;
 
-		let mut failure = false;
+		let failure = false;
 		let mut value: String = String::new();
-		let mut err: TokErr = TokErr { msg: "".to_string() };
+		let err: TokErr = TokErr { msg: "".to_string() };
 
 		loop {
-			let mut c_value = data.chars().nth(c_idx).unwrap();
+			let c_value = data.chars().nth(c_idx).unwrap();
 			// TODO: Logic fix
 			// Current logic increments the index counter raising issues in the program.
 			// If it encounters these characters then it tries to decrement the counter by one
@@ -353,13 +362,13 @@ impl Tokens {
 		if failure { return (TokenKind::Err(err), c_idx) }
 		if value.is_empty() { return (TokenKind::Blank, c_idx) }
 
-		// println!("LIT => {}", value);
 		if value.chars().all(char::is_alphanumeric) || !value.is_empty() {
 			// Integer Check
 			let lit_check = match value.parse::<i64>() {
 				Ok(_) => LitKind::Float,
 				Err(_) => LitKind::String
 			};
+			println!("{} --> {:?}", value, lit_check);
 			let lit_kind = Lit::new(lit_check, value);
 			token = TokenKind::Literal(lit_kind);
 		}
@@ -371,12 +380,12 @@ impl Tokens {
 	///
 	#[inline]
 	fn process_n_block_chars(data: &String, idx: &usize, r_type: TokenKind) -> (TokenKind, usize) {
-		let mut w_idx = idx.clone();
+		let w_idx = idx.clone();
 		let nchar = str_peek(&data, &w_idx);
 
 		let retval = match nchar {
 			' ' => {
-				let mut err_block = Self::generate_err_block(&data, &w_idx, " Expects [a-zA-Z0-0] after '[@, &, $]'");
+				let err_block = Self::generate_err_block(&data, &w_idx, " Expects [a-zA-Z0-0] after '[@, &, $]'");
 				TokenKind::Err(TokErr::new(err_block))
 			},
 			_   => { r_type }

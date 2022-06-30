@@ -1,5 +1,4 @@
 use clap::Parser;
-use std::error::Error;
 use crate::cli::Args;
 use crate::token::Tokens;
 

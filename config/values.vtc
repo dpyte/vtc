@@ -1,0 +1,17 @@
+
+@values:
+	$integers := [1, 2, 3, 4]
+	$floats   := [0.1, 0.2, 0.3, 0.4]
+	$strings  := [string1 string2 string3]
+	$chars    := [a b c d e f]
+
+	# vtc allows mix and match several data types:
+	$referencing := [
+		# Including existing list. One way to do so is using following notation
+		&values.integers,
+		# Another way to do so is. Note that the system will report error if it encounters out-of-range
+		&values.integers[0..3],
+		# Including pointer value of existing value.
+		# Following notation uses a range-based approach.
+		&values.strings.[1..3],
+	]

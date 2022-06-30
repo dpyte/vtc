@@ -1,0 +1,9 @@
+
+# Linked list in this structure does not provide any mechanism to manage the linked list
+# and must me done by the user
+@example:
+	$ll_size := 0
+
+	# Define ds type inside ![...]
+	# Following structure defines an empty linked list with string-type
+	$ll := ![str]{...}

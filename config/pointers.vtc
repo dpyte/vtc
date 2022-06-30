@@ -1,0 +1,5 @@
+
+@pointers:
+	$field_1 := [1, 2, 3]
+	$final   := [ %field_1->(0) ]
+

@@ -1,0 +1,6 @@
+
+%%user test
+
+@include:
+	$test := [ %test->(1..4) ]
+

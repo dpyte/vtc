@@ -1,0 +1,5 @@
+
+@assignment_error:
+	$ err := [ 1, 3 ]
+
+

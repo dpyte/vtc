@@ -1,0 +1,18 @@
+%% vtc data
+%% vtc accessibility
+
+# Define user data
+@info:
+	# Feature: allow containers to be private(close)/ public(open)
+	# $vtc_access := ["open"]
+	$value := [ "Test" ]
+	$test  := [ &value->0 ]
+
+# Populate your data in this structure
+@vtc:
+	# This structure accepts data in form of vtc-containers i.e., user-defined structures
+	$data := [
+		# Following notation takes all the field in @info and populates them in this structure
+		%info.[..]
+	]
+

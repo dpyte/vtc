@@ -1,0 +1,29 @@
+//
+// vtc
+// Author: dpyte
+//
+
+alpha = { 'a'..'z' | 'A'..'Z' }
+digit = { '0'..'9' }
+alphanumeric = { (("_" | alpha) ~ (digit | "_"))+ }
+assignment = { ":" ~ "=" }
+
+tag = { PUSH("%"*) ~ PUSH(alphanumeric*) ~ "\n"}
+
+empty_list = {"!" ~ "[" ~ alphanumeric ~ "]" ~ "{" ~ "..." ~ "}"}
+
+str_val = {("[" ~ (alphanumeric+) ~ "]")}
+
+values = {
+	"$" ~ alphanumeric ~ ":"
+	~ (empty_list)
+}
+
+container = {
+	("@" ~ alphanumeric ~ ":" ~ "\n")
+	~ (values)+
+}
+
+vtc = {
+	PUSH(tag*) ~ POP
+}

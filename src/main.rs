@@ -1,12 +1,14 @@
 use clap::Parser;
-use crate::cli::Args;
-use crate::token::Tokens;
+use vtc::cli::Args;
+use vtc::serializer::parser::RParser;
+use vtc::serializer::token::Tokens;
 
-mod cli;
-mod token;
 
 fn main() {
 	let args = Args::parse();
 	let mut tokens = Tokens::new(args.filename.as_str()).unwrap();
-	tokens.parse().unwrap();
+	tokens.tokenize().unwrap();
+
+	let mut p_obj = RParser::new(tokens);
+	p_obj.generate_ast();
 }

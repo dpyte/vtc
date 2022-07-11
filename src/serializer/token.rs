@@ -164,7 +164,17 @@ impl Tokens {
 		Ok(Self { file_data, tokens, data })
 	}
 
-	pub fn parse(&mut self) -> Result<(), Error>{
+	/// Returns total size of tokens
+	pub fn len(&self) -> usize {
+		self.tokens.len()
+	}
+
+	/// Return tokens
+	pub fn tokens(&self) -> &Vec<TokenKind> {
+		&self.tokens
+	}
+
+	pub fn tokenize(&mut self) -> Result<(), Error>{
 		let len = self.file_data.len();
 		let data = self.file_data.clone();
 
@@ -368,7 +378,6 @@ impl Tokens {
 				Ok(_) => LitKind::Float,
 				Err(_) => LitKind::String
 			};
-			println!("{} --> {:?}", value, lit_check);
 			let lit_kind = Lit::new(lit_check, value);
 			token = TokenKind::Literal(lit_kind);
 		}

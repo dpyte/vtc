@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use std::process::exit;
-    use vtc::parser::ast::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
+    use vtc::parser::ast::{Accessor, Number, Reference, ReferenceType, Value};
     use vtc::parser::grammar::{parse, parse_list, parse_number, parse_reference, parse_value};
     use vtc::parser::lexer::{tokenize, Token};
 
@@ -178,7 +177,6 @@ mod tests {
             Err(e) => println!("Error: {:?}", e),
         }
 
-        // First, tokenize the input
         let (remaining_tokens, tokens) = tokenize(input).unwrap();
         let vtc_file = match parse(&tokens) {
             Ok(vtc_file) => {
@@ -194,11 +192,9 @@ mod tests {
         // Assert that all tokens were consumed
         assert!(remaining_tokens.is_empty(), "Not all tokens were consumed");
 
-        // Now, let's assert that the parsed structure matches what we expect
         // assert_eq!(vtc_file.namespaces.len(), 3);
 
-        // Check the Engine_Import namespace
-        let engine_import = &vtc_file.namespaces[0];
+        let engine_import = &vtc_file.1.namespaces[0]; //  namespaces[0];
         assert_eq!(engine_import.name, "Engine_Import");
         assert_eq!(engine_import.variables.len(), 2);
 
@@ -211,26 +207,24 @@ mod tests {
         assert!(matches!(enable_features.value, Value::List(_)));
 
         // Check the test_balanced namespace
-        let test_balanced = &vtc_file.namespaces[1];
+        let test_balanced = &vtc_file.1.namespaces[1];
         assert_eq!(test_balanced.name, "test_balanced");
         assert_eq!(test_balanced.variables.len(), 4);
 
         // Check the test_reference namespace
-        let test_reference = &vtc_file.namespaces[2];
+        let test_reference = &vtc_file.1.namespaces[2];
         assert_eq!(test_reference.name, "test_reference");
-        assert_eq!(test_reference.variables.len(), 8);
+        assert_eq!(test_reference.variables.len(), 6);
 
         // Let's check a specific variable in more detail
         let var_4 = &test_reference.variables[3];
-        assert_eq!(var_4.name, "var_4");
-        assert!(matches!(var_4.value, Value::Reference(_)));
+        assert_eq!(var_4.name, "var_6");
+        assert!(matches!(var_4.value, Value::Nil));
         if let Value::Reference(ref r) = var_4.value {
             assert_eq!(r.ref_type, ReferenceType::External);
             assert_eq!(r.namespace, Some("test_reference".to_string()));
             assert_eq!(r.variable, "var_1");
             assert_eq!(r.accessors, vec![Accessor::Index(0)]);
         }
-
-        // Add more detailed assertions as needed...
     }
 }

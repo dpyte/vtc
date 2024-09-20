@@ -1,10 +1,10 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while1},
-    character::complete::{alpha1, alphanumeric1, char, digit1, multispace0, multispace1, none_of, one_of},
+    character::complete::{alpha1, alphanumeric1, char, digit1, multispace0, none_of},
     combinator::{map, opt, recognize, value},
     multi::{many0, many1},
-    sequence::{delimited, pair, preceded, terminated, tuple},
+    sequence::{delimited, pair, preceded, tuple},
     IResult,
 };
 
@@ -60,7 +60,7 @@ pub fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
                 value(Token::Colon, char(':')),
                 map(parse_identifier, Token::Identifier),
             )),
-            multispace0
+            multispace0,
         )
     )(input)
 }
@@ -113,7 +113,7 @@ pub fn parse_reference(input: &str) -> IResult<&str, String> {
                 tag("."),
                 delimited(tag("->"), take_while1(|c: char| c.is_alphanumeric() || c == '_'), opt(delimited(char('('), take_until(")"), char(')')))),
                 delimited(char('['), take_until("]"), char(']')),
-            )))
+            ))),
         )
     )(input).map(|(i, s)| (i, s.to_string()))
 }
@@ -122,7 +122,7 @@ pub fn parse_identifier(input: &str) -> IResult<&str, String> {
     recognize(
         pair(
             alt((alpha1, tag("_"))),
-            many0(alt((alphanumeric1, tag("_"))))
+            many0(alt((alphanumeric1, tag("_")))),
         )
     )(input).map(|(i, s)| (i, s.to_string()))
 }

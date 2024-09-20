@@ -9,7 +9,7 @@ use nom::IResult;
 pub fn parse(tokens: &[Token]) -> IResult<&[Token], VtcFile> {
     map(
         many1(parse_namespace),
-        |namespaces| VtcFile { namespaces }
+        |namespaces| VtcFile { namespaces },
     )(tokens)
 }
 
@@ -118,7 +118,7 @@ pub fn parse_list<'a>(tokens: &'a [Token]) -> IResult<&'a [Token], Vec<Value>> {
     delimited(
         parse_open_bracket,
         separated_list0(parse_comma, parse_value),
-        parse_close_bracket
+        parse_close_bracket,
     )(tokens)
 }
 
@@ -157,7 +157,7 @@ pub fn parse_reference(tokens: &[Token]) -> IResult<&[Token], Reference> {
         return Err(nom::Err::Error(nom::error::Error::new(tokens, nom::error::ErrorKind::Tag)));
     };
 
-    let (namespace, variable, rest) = if let Some(dot_index) = rest.find('.') {
+    let (namespace, variable, _rest) = if let Some(dot_index) = rest.find('.') {
         let namespace = Some(rest[..dot_index].to_string());
         let rest = &rest[dot_index + 1..];
         if let Some(var_end) = rest.find(|c| c == '-' || c == '[') {
@@ -224,7 +224,7 @@ fn parse_index_accessor(tokens: &[Token]) -> IResult<&[Token], Accessor> {
     delimited(
         parse_open_paren,
         map(parse_integer, |i| Accessor::Index(i as usize)),
-        parse_close_paren
+        parse_close_paren,
     )(tokens)
 }
 
@@ -232,7 +232,7 @@ fn parse_key_accessor(tokens: &[Token]) -> IResult<&[Token], Accessor> {
     delimited(
         parse_open_bracket,
         map(parse_identifier, Accessor::Key),
-        parse_close_bracket
+        parse_close_bracket,
     )(tokens)
 }
 

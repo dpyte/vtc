@@ -34,7 +34,7 @@ pub enum Number {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum  ReferenceType {
+pub enum ReferenceType {
     External, // &
     Local, // %
 }

@@ -3,4 +3,5 @@
     $value_2 := [True, False, %test_sample.value_1->(0..2)]
 
 @test_inherit:
-    $inherit_1 := [&test_sample.value_2->(2)]
+    $inherit_1 := [&test_sample.value_1->(1), &test_sample.value_2->(2), "Testing limit in directive test_inherit."] #  ["world", ["hello", "world"], "Testing limit in directive test_inherit."]
+    $inherit_2 := [ %test_inherit.inherit_1->(0..1), &test_sample.value_2->(0..2) ] # Should output  [["world"], [true, false]]

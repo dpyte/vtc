@@ -1,9 +1,11 @@
+use std::result;
 use crate::parser::ast::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
 use crate::parser::lexer::Token;
 use nom::branch::alt;
+use nom::character::complete::char;
 use nom::combinator::map;
 use nom::multi::{many0, many1, separated_list0};
-use nom::sequence::{delimited, preceded};
+use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 
 pub fn parse(tokens: &[Token]) -> IResult<&[Token], VtcFile> {
@@ -213,10 +215,14 @@ fn parse_namespace_and_variable(s: &str) -> (Option<String>, String, &str) {
 
 fn parse_accessors(tokens: &[Token]) -> IResult<&[Token], Vec<Accessor>> {
     many0(
-        alt((
-            preceded(parse_pointer, parse_index_accessor),
-            preceded(parse_pointer, parse_key_accessor),
-        ))
+        preceded(
+            parse_pointer,
+            alt((
+                parse_range_accessor,
+                parse_index_accessor,
+                parse_key_accessor,
+            ))
+        )
     )(tokens)
 }
 
@@ -226,6 +232,28 @@ fn parse_index_accessor(tokens: &[Token]) -> IResult<&[Token], Accessor> {
         map(parse_integer, |i| Accessor::Index(i as usize)),
         parse_close_paren,
     )(tokens)
+}
+
+fn parse_range_accessor(tokens: &[Token]) -> IResult<&[Token], Accessor> {
+    delimited(
+        parse_open_paren,
+        map(
+            tuple((
+                parse_integer,
+                parse_range,
+                parse_integer
+            )),
+            |(start, _, end)| Accessor::Range(start as usize, end as usize)
+        ),
+        parse_close_paren,
+    )(tokens)
+}
+
+fn parse_range(tokens: &[Token]) -> IResult<&[Token], ()> {
+    match tokens.get(0) {
+        Some(Token::Range) => Ok((&tokens[1..], ())),
+        _ => Err(nom::Err::Error(nom::error::Error::new(tokens, nom::error::ErrorKind::Tag))),
+    }
 }
 
 fn parse_key_accessor(tokens: &[Token]) -> IResult<&[Token], Accessor> {

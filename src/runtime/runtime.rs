@@ -1,7 +1,7 @@
 use crate::parser::ast::{Accessor, Reference, ReferenceType, Value, VtcFile};
 use crate::parser::grammar::parse;
 use crate::parser::lexer::tokenize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
@@ -71,8 +71,10 @@ impl Runtime {
         if !remaining.is_empty() {
             return Err(RuntimeError::ParseError("Input was not fully parsed".to_string()));
         }
+
         let (_, vtc_file) = parse(&tokens).map_err(|e| RuntimeError::ParseError(format!("Parsing failed: {:?}", e)))?;
         println!("{:#}", vtc_file);
+
         let result = self.load_vtc_file(vtc_file);
         result
     }
@@ -145,7 +147,7 @@ impl Runtime {
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the value or the type of runtime error encountered.
     pub fn resolve_reference(&self, reference: &Reference) -> Result<Value, RuntimeError> {
-        let mut visited = Vec::new();
+        let mut visited = HashSet::new();
         let result = self.resolve_reference_recursive(reference, &mut visited);
         result
     }
@@ -207,12 +209,11 @@ impl Runtime {
     /// # Returns
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the value or the type of runtime error encountered.
-    fn resolve_reference_recursive(&self, reference: &Reference, visited: &mut Vec<(Option<String>, String)>) -> Result<Value, RuntimeError> {
+    fn resolve_reference_recursive(&self, reference: &Reference, visited: &mut HashSet<(Option<String>, String)>) -> Result<Value, RuntimeError> {
         let key = (reference.namespace.clone(), reference.variable.clone());
-        if visited.contains(&key) {
+        if !visited.insert(key.clone()) {
             return Err(RuntimeError::CircularReference);
         }
-        visited.push(key.clone());
 
         let namespace = match &reference.namespace {
             Some(ns) => ns,
@@ -225,7 +226,8 @@ impl Runtime {
         };
 
         let variables = self.namespaces.get(namespace)
-            .ok_or_else(|| RuntimeError::NamespaceNotFound(namespace.clone()))?;
+            .ok_or_else(|| RuntimeError::NamespaceNotFound(format!("Unable to locate namespace `{:?}`", namespace)))?;
+
         let mut value = variables.get(&reference.variable)
             .ok_or_else(|| RuntimeError::VariableNotFound(reference.variable.clone()))?
             .clone();
@@ -238,6 +240,7 @@ impl Runtime {
             value = self.apply_accessor(value, accessor)?;
         }
 
+        visited.remove(&key);
         Ok(value)
     }
 
@@ -251,7 +254,7 @@ impl Runtime {
     /// # Returns
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the resolved value or the type of runtime error encountered.
-    fn resolve_value(&self, value: Value, visited: &mut Vec<(Option<String>, String)>) -> Result<Value, RuntimeError> {
+    fn resolve_value(&self, value: Value, visited: &mut HashSet<(Option<String>, String)>) -> Result<Value, RuntimeError> {
         match value {
             Value::Reference(inner_reference) => self.resolve_reference_recursive(&inner_reference, visited),
             Value::List(items) => {

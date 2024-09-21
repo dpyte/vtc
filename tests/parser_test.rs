@@ -227,4 +227,35 @@ mod tests {
             assert_eq!(r.accessors, vec![Accessor::Index(0)]);
         }
     }
+
+    #[test]
+    fn test_parse_range_operator() {
+        let input =r#"
+        @test_sample:
+            $value_1 := ["hello", "world", "\0"]
+            $value_2 := [True, False, %test_sample.value_1->(0..2)]
+        "#;
+        match tokenize(input) {
+            Ok((remaining, tokens)) => {
+                println!("Tokens:");
+                for (index, token) in tokens.iter().enumerate() {
+                    println!("{}: {:?}", index, token);
+                }
+                println!("Remaining input: {:?}", remaining);
+            }
+            Err(e) => println!("Error: {:?}", e),
+        }
+
+        let (remaining_tokens, tokens) = tokenize(input).unwrap();
+        let vtc_file = match parse(&tokens) {
+            Ok(vtc_file) => {
+                println!("Successfully parsed VTC file: {:?}", vtc_file);
+                vtc_file
+            },
+            Err(e) => {
+                println!("Error parsing VTC file: {:?}", e);
+                return;
+            }
+        };
+    }
 }

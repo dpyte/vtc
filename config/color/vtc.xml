@@ -1,0 +1,94 @@
+<filetype binary="false" description="VTC File" name="VTC">
+    <highlighting>
+        <options>
+            <option name="LINE_COMMENT" value="#" />
+            <option name="COMMENT_START" value="" />
+            <option name="COMMENT_END" value="" />
+            <option name="HEX_PREFIX" value="0x" />
+            <option name="NUM_POSTFIXES" value="" />
+            <option name="HAS_BRACKETS" value="true" />
+            <option name="HAS_BRACES" value="false" />
+            <option name="HAS_PARENS" value="true" />
+        </options>
+        <keywords keywords="Nil;True;False" ignore_case="false" />
+        <keywords2 keywords="@" /> <!-- Namespace/Directive -->
+        <keywords3 keywords="$" /> <!-- Variable -->
+        <keywords4 keywords=":=" /> <!-- Assignment -->
+
+        <!-- Define tokens -->
+        <lexer>
+            <!-- Namespace -->
+            <state name="NAMESPACE">
+                <begin><![CDATA[@[\w_]+:]]></begin>
+                <end><![CDATA[$]]></end>
+                <style foreground="CC7832" font-type="1" /> <!-- Bold Orange -->
+            </state>
+
+            <!-- Variable -->
+            <state name="VARIABLE">
+                <begin><![CDATA[\$[\w_]+]]></begin>
+                <end><![CDATA[(?=:=)]]></end>
+                <style foreground="9876AA" /> <!-- Purple -->
+            </state>
+
+            <!-- List -->
+            <state name="LIST">
+                <begin>\[</begin>
+                <end>\]</end>
+                <style foreground="A9B7C6" /> <!-- Light Gray -->
+            </state>
+
+            <!-- String -->
+            <state name="STRING">
+                <begin>"</begin>
+                <end>"</end>
+                <style foreground="6A8759" /> <!-- Green -->
+            </state>
+
+            <!-- Number -->
+            <state name="NUMBER">
+                <begin><![CDATA[(?<!\w)(-?\d+(\.\d*)?|\.\d+)]]></begin>
+                <end><![CDATA[(?!\w)]]></end>
+                <style foreground="6897BB" /> <!-- Blue -->
+            </state>
+
+            <!-- Boolean -->
+            <state name="BOOLEAN">
+                <begin><![CDATA[(True|False)]]></begin>
+                <end><![CDATA[(?!\w)]]></end>
+                <style foreground="CC7832" font-type="1" /> <!-- Bold Orange -->
+            </state>
+
+            <!-- Nil -->
+            <state name="NIL">
+                <begin>Nil</begin>
+                <end><![CDATA[(?!\w)]]></end>
+                <style foreground="CC7832" font-type="1" /> <!-- Bold Orange -->
+            </state>
+
+            <!-- Reference -->
+            <state name="REFERENCE">
+                <begin><![CDATA[(&|%)[\w_\.]+]]></begin>
+                <end><![CDATA[(?=->|\])]]></end>
+                <style foreground="FFC66D" /> <!-- Light Yellow -->
+            </state>
+
+            <!-- Accessor -->
+            <state name="ACCESSOR">
+                <begin>-></begin>
+                <end><![CDATA[\)|\]]]></end>
+                <style foreground="A9B7C6" /> <!-- Light Gray -->
+            </state>
+
+            <!-- Comment -->
+            <state name="COMMENT">
+                <begin>#</begin>
+                <end>$</end>
+                <style foreground="808080" font-type="2" /> <!-- Italic Gray -->
+            </state>
+        </lexer>
+    </highlighting>
+    <extensionMap>
+        <mapping ext="vtc" />
+    </extensionMap>
+</filetype>

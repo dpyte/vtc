@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod runtime_tests {
+    use std::path::PathBuf;
     use vtc::parser::ast::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
+    use vtc::parser::ast::Accessor::Index;
+    use vtc::parser::ast::ReferenceType::{External, Local};
     use vtc::runtime::runtime::{Runtime, RuntimeError};
 
     fn create_test_vtc_file() -> VtcFile {
@@ -175,5 +178,26 @@ mod runtime_tests {
             runtime.get_value_with_ref(&reference),
             Err(RuntimeError::InvalidAccessor(_))
         ));
+    }
+
+    #[test]
+    fn test_read_file() {
+        let mut runtime = Runtime::new();
+        runtime.read_file(PathBuf::from("./tests/inherit_directive.vtc".to_string())).unwrap();
+
+        let test_sample_value_1 = runtime.get_value("test_sample", "value_1",
+                                                Local, vec![]).unwrap();
+        assert_eq!(test_sample_value_1, Value::List(vec![
+            Value::String("hello".to_string()),
+            Value::String("world".to_string()),
+            Value::String("\\0".to_string()),
+        ]));
+
+        let inherit_value_1 = runtime.get_value("test_inherit", "value_1", External, vec![Index(0)]).unwrap();
+        assert_eq!(inherit_value_1, Value::List(vec![
+            Value::String("hello".to_string()),
+            Value::String("world".to_string()),
+            Value::String("\\0".to_string()),
+        ]));
     }
 }

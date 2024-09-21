@@ -1,0 +1,70 @@
+<scheme name="VTC Custom" version="142" parent_scheme="Darcula">
+  <metaInfo>
+    <property name="created">2023-09-20T12:00:00</property>
+    <property name="ide">Idea</property>
+    <property name="ideVersion">2023.2.0.0</property>
+    <property name="modified">2023-09-20T12:00:00</property>
+    <property name="originalScheme">VTC Custom</property>
+  </metaInfo>
+  <attributes>
+    <option name="VTC_NAMESPACE">
+      <value>
+        <option name="FOREGROUND" value="#CC7832"/>
+        <option name="FONT_TYPE" value="1"/>
+      </value>
+    </option>
+    <option name="VTC_VARIABLE">
+      <value>
+        <option name="FOREGROUND" value="#9876AA"/>
+      </value>
+    </option>
+    <option name="VTC_ASSIGNMENT">
+      <value>
+        <option name="FOREGROUND" value="#A9B7C6"/>
+      </value>
+    </option>
+    <option name="VTC_STRING">
+      <value>
+        <option name="FOREGROUND" value="#6A8759"/>
+      </value>
+    </option>
+    <option name="VTC_NUMBER">
+      <value>
+        <option name="FOREGROUND" value="#6897BB"/>
+      </value>
+    </option>
+    <option name="VTC_BOOLEAN">
+      <value>
+        <option name="FOREGROUND" value="#CC7832"/>
+        <option name="FONT_TYPE" value="1"/>
+      </value>
+    </option>
+    <option name="VTC_NIL">
+      <value>
+        <option name="FOREGROUND" value="#CC7832"/>
+        <option name="FONT_TYPE" value="1"/>
+      </value>
+    </option>
+    <option name="VTC_REFERENCE">
+      <value>
+        <option name="FOREGROUND" value="#FFC66D"/>
+      </value>
+    </option>
+    <option name="VTC_ACCESSOR">
+      <value>
+        <option name="FOREGROUND" value="#A9B7C6"/>
+      </value>
+    </option>
+    <option name="VTC_BRACKET">
+      <value>
+        <option name="FOREGROUND" value="#A9B7C6"/>
+      </value>
+    </option>
+    <option name="VTC_COMMENT">
+      <value>
+        <option name="FOREGROUND" value="#808080"/>
+        <option name="FONT_TYPE" value="2"/>
+      </value>
+    </option>
+  </attributes>
+</scheme>

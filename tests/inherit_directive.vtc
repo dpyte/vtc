@@ -1,0 +1,6 @@
+@test_sample:
+    $value_1 := ["hello", "world", "\0"]
+    $value_2 := [True, False, %test_sample.value_1->(0..2)]
+
+@test_inherit:
+    $inherit_1 := [&test_sample.value_2->(2)]

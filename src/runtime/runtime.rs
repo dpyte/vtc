@@ -67,12 +67,15 @@ impl Runtime {
     ///
     /// * `Result<(), RuntimeError>` - Result type indicating success or the type of runtime error encountered.
     pub fn load_vtc(&mut self, input: &str) -> Result<(), RuntimeError> {
-        let (remaining, tokens) = tokenize(input).map_err(|e| RuntimeError::ParseError(format!("Tokenization failed: {:?}", e)))?;
+        let (remaining, tokens) = tokenize(input)
+            .map_err(|e| RuntimeError::ParseError(format!("Tokenization failed: {:?}", e)))?;
         if !remaining.is_empty() {
-            return Err(RuntimeError::ParseError("Input was not fully parsed".to_string()));
+            return Err(RuntimeError::ParseError(
+                "Input was not fully parsed".to_string(),
+            ));
         }
 
-        let (_, vtc_file) = parse(&tokens).map_err(|e| RuntimeError::ParseError(format!("Parsing failed: {:?}", e)))?;
+        let vtc_file = parse(&tokens).map_err(|e| RuntimeError::ParseError(e.to_string()))?;
         println!("{:#}", vtc_file);
 
         let result = self.load_vtc_file(vtc_file);
@@ -125,7 +128,13 @@ impl Runtime {
     /// # Returns
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the value or the type of runtime error encountered.
-    pub fn get_value(&self, namespace: &str, variable: &str, ref_type: ReferenceType, accessors: Vec<Accessor>) -> Result<Value, RuntimeError> {
+    pub fn get_value(
+        &self,
+        namespace: &str,
+        variable: &str,
+        ref_type: ReferenceType,
+        accessors: Vec<Accessor>,
+    ) -> Result<Value, RuntimeError> {
         let reference = Reference {
             ref_type,
             namespace: Some(namespace.to_string()),
@@ -162,7 +171,11 @@ impl Runtime {
     /// # Returns
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the value or the type of runtime error encountered.
-    fn get_value_recursive(&self, reference: &Reference, visited: &mut Vec<(Option<String>, String)>) -> Result<Value, RuntimeError> {
+    fn get_value_recursive(
+        &self,
+        reference: &Reference,
+        visited: &mut Vec<(Option<String>, String)>,
+    ) -> Result<Value, RuntimeError> {
         let key = (reference.namespace.clone(), reference.variable.clone());
         if visited.contains(&key) {
             return Err(RuntimeError::CircularReference);
@@ -172,18 +185,24 @@ impl Runtime {
         let namespace = match &reference.namespace {
             Some(ns) => ns,
             None => {
+                // TODO: Remove this call as the runtime will now be responsible in evaluating this call
                 if reference.ref_type == ReferenceType::External {
                     return Err(RuntimeError::MissingNamespace);
                 }
-                self.namespaces.keys().next().ok_or(RuntimeError::NoNamespaces)?
+                self.namespaces
+                    .keys()
+                    .next()
+                    .ok_or(RuntimeError::NoNamespaces)?
             }
         };
 
-        let variables = self.namespaces
+        let variables = self
+            .namespaces
             .get(namespace)
             .ok_or(RuntimeError::NamespaceNotFound(namespace.clone()))?;
 
-        let mut value = variables.get(&reference.variable)
+        let mut value = variables
+            .get(&reference.variable)
             .ok_or(RuntimeError::VariableNotFound(reference.variable.clone()))?
             .clone();
 
@@ -209,7 +228,11 @@ impl Runtime {
     /// # Returns
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the value or the type of runtime error encountered.
-    fn resolve_reference_recursive(&self, reference: &Reference, visited: &mut HashSet<(Option<String>, String)>) -> Result<Value, RuntimeError> {
+    fn resolve_reference_recursive(
+        &self,
+        reference: &Reference,
+        visited: &mut HashSet<(Option<String>, String)>,
+    ) -> Result<Value, RuntimeError> {
         let key = (reference.namespace.clone(), reference.variable.clone());
         if !visited.insert(key.clone()) {
             return Err(RuntimeError::CircularReference);
@@ -221,14 +244,19 @@ impl Runtime {
                 if reference.ref_type == ReferenceType::External {
                     return Err(RuntimeError::MissingNamespace);
                 }
-                self.namespaces.keys().next().ok_or(RuntimeError::NoNamespaces)?
+                self.namespaces
+                    .keys()
+                    .next()
+                    .ok_or(RuntimeError::NoNamespaces)?
             }
         };
 
-        let variables = self.namespaces.get(namespace)
-            .ok_or_else(|| RuntimeError::NamespaceNotFound(format!("Unable to locate namespace `{:?}`", namespace)))?;
+        let variables = self.namespaces.get(namespace).ok_or_else(|| {
+            RuntimeError::NamespaceNotFound(format!("Unable to locate namespace `{:?}`", namespace))
+        })?;
 
-        let mut value = variables.get(&reference.variable)
+        let mut value = variables
+            .get(&reference.variable)
             .ok_or_else(|| RuntimeError::VariableNotFound(reference.variable.clone()))?
             .clone();
 
@@ -254,15 +282,22 @@ impl Runtime {
     /// # Returns
     ///
     /// * `Result<Value, RuntimeError>` - Result type containing the resolved value or the type of runtime error encountered.
-    fn resolve_value(&self, value: Value, visited: &mut HashSet<(Option<String>, String)>) -> Result<Value, RuntimeError> {
+    fn resolve_value(
+        &self,
+        value: Value,
+        visited: &mut HashSet<(Option<String>, String)>,
+    ) -> Result<Value, RuntimeError> {
         match value {
-            Value::Reference(inner_reference) => self.resolve_reference_recursive(&inner_reference, visited),
+            Value::Reference(inner_reference) => {
+                self.resolve_reference_recursive(&inner_reference, visited)
+            }
             Value::List(items) => {
-                let resolved_items = items.into_iter()
+                let resolved_items = items
+                    .into_iter()
                     .map(|item| self.resolve_value(item, visited))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value::List(resolved_items))
-            },
+            }
             _ => Ok(value),
         }
     }
@@ -279,24 +314,36 @@ impl Runtime {
     /// * `Result<Value, RuntimeError>` - Result type containing the modified value or the type of runtime error encountered.
     fn apply_accessor(&self, value: Value, accessor: &Accessor) -> Result<Value, RuntimeError> {
         match (value, accessor) {
-            (Value::List(list), Accessor::Index(index)) => {
-                list.get(*index).cloned().ok_or(RuntimeError::IndexOutOfBounds(*index))
-            }
-            (Value::String(s), Accessor::Index(index)) => {
-                s.chars().nth(*index)
-                    .map(|c| Value::String(c.to_string()))
-                    .ok_or(RuntimeError::IndexOutOfBounds(*index))
-            }
+            (Value::List(list), Accessor::Index(index)) => list
+                .get(*index)
+                .cloned()
+                .ok_or(RuntimeError::IndexOutOfBounds(*index)),
             (Value::List(list), Accessor::Range(start, end)) => {
                 if *start > *end || *end > list.len() {
-                    return Err(RuntimeError::InvalidRange(*start, *end));
+                    Err(RuntimeError::InvalidRange(*start, *end))
+                } else {
+                    Ok(Value::List(list[*start..*end].to_vec()))
                 }
-                Ok(Value::List(list[*start..*end].to_vec()))
             }
-            (_, Accessor::Key(key)) => {
-                Err(RuntimeError::InvalidAccessor(format!("Key accessor '{}' not supported for this value type", key)))
+            (Value::String(s), Accessor::Index(index)) => s
+                .chars()
+                .nth(*index)
+                .map(|c| Value::String(c.to_string()))
+                .ok_or(RuntimeError::IndexOutOfBounds(*index)),
+            (Value::String(s), Accessor::Range(start, end)) => {
+                if *start > *end || *end > s.len() {
+                    Err(RuntimeError::InvalidRange(*start, *end))
+                } else {
+                    Ok(Value::String(s[*start..*end].to_string()))
+                }
             }
-            _ => Err(RuntimeError::InvalidAccessor("Accessor not supported for this value type".to_string())),
+            (_, Accessor::Key(key)) => Err(RuntimeError::InvalidAccessor(format!(
+                "Key accessor '{}' not supported for this value type",
+                key
+            ))),
+            _ => Err(RuntimeError::InvalidAccessor(
+                "Accessor not supported for this value type".to_string(),
+            )),
         }
     }
 }

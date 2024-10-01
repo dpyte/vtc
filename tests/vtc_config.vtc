@@ -1,0 +1,5 @@
+
+@VTC:
+    $name := ["VTC"]
+    $version := [ "0.0.1", "development" ]
+    $description := ["Virtual Transport Configuration file format - Kinda like JSON but C-like capabilities"]

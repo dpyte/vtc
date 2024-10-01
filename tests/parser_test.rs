@@ -1,7 +1,10 @@
+extern crate core;
+
 #[cfg(test)]
 mod tests {
+    use core::num::dec2flt::parse::parse_number;
     use vtc::parser::ast::{Accessor, Number, Reference, ReferenceType, Value};
-    use vtc::parser::grammar::{parse, parse_list, parse_number, parse_reference, parse_value};
+    use vtc::parser::grammar::{parse};
     use vtc::parser::lexer::{tokenize, Token};
 
     #[test]
@@ -182,7 +185,7 @@ mod tests {
             Ok(vtc_file) => {
                 println!("Successfully parsed VTC file: {:?}", vtc_file);
                 vtc_file
-            },
+            }
             Err(e) => {
                 println!("Error parsing VTC file: {:?}", e);
                 return;
@@ -230,10 +233,10 @@ mod tests {
 
     #[test]
     fn test_parse_range_operator() {
-        let input =r#"
+        let input = r#"
         @test_sample:
             $value_1 := ["hello", "world", "\0"]
-            $value_2 := [True, False, %test_sample.value_1->(0..2)]
+            $value_2 := [True, False, %test_sample.value_1->(0..2), %value_2->(0..2)]
         "#;
         match tokenize(input) {
             Ok((remaining, tokens)) => {
@@ -251,7 +254,7 @@ mod tests {
             Ok(vtc_file) => {
                 println!("Successfully parsed VTC file: {:?}", vtc_file);
                 vtc_file
-            },
+            }
             Err(e) => {
                 println!("Error parsing VTC file: {:?}", e);
                 return;

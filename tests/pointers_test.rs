@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod runtime_tests {
-    use vtc::parser::ast::{Accessor, Number, Reference, ReferenceType, Value};
-    use vtc::parser::ast::Accessor::Index;
-    use vtc::parser::ast::ReferenceType::Local;
-    use vtc::runtime::runtime::{Runtime, RuntimeError};
+	use vtc::parser::ast::Accessor::Index;
+	use vtc::parser::ast::ReferenceType::Local;
+	use vtc::parser::ast::{Accessor, Number, Reference, ReferenceType, Value};
+	use vtc::runtime::runtime::{Runtime, RuntimeError};
 
-    fn create_test_vtc() -> String {
+	fn create_test_vtc() -> String {
         r#"
 @Main:
     $target := "Local Target"
@@ -20,8 +20,8 @@ mod runtime_tests {
 @Other:
     $target := "External Target"
 "#
-            .trim()
-            .to_string()
+	        .trim()
+	        .to_string()
     }
 
     #[test]
@@ -79,12 +79,11 @@ mod runtime_tests {
         };
 
         let accessors = vec![Accessor::Index(1), Accessor::Index(0)];
-        let test_value = runtime.get_value("Main", "nested_list", Local, accessors).unwrap();
+	    let test_value = runtime
+		    .get_value("Main", "nested_list", Local, accessors)
+		    .unwrap();
 
-        assert_eq!(
-            test_value,
-            Value::Number(Number::Integer(2))
-        );
+	    assert_eq!(test_value, Value::Number(Number::Integer(2)));
     }
 
     #[test]
@@ -111,27 +110,37 @@ mod runtime_tests {
         runtime.load_vtc(&create_test_vtc()).unwrap();
 
         // Test accessing a specific element (should return the element as is)
-        let test_value_with_accessor = runtime.get_value("Main", "ref_with_accessor",
-                                                         Local, vec![]).unwrap();
-        assert_eq!(test_value_with_accessor, Value::String("testing2".to_string()));
+	    let test_value_with_accessor = runtime
+		    .get_value("Main", "ref_with_accessor", Local, vec![])
+		    .unwrap();
+	    assert_eq!(
+		    test_value_with_accessor,
+		    Value::String("testing2".to_string())
+	    );
 
         // Test accessing a range (should allow further accessors)
-        let test_value_with_range = runtime.get_value("Main", "ref_with_range",
-                                                      Local, vec![Index(1)]).unwrap();
+	    let test_value_with_range = runtime
+		    .get_value("Main", "ref_with_range", Local, vec![Index(1)])
+		    .unwrap();
         assert_eq!(test_value_with_range, Value::String("testing2".to_string()));
 
         // Test accessing the original list (should return the whole list)
-        let original_list = runtime.get_value("Main", "multi_list",
-                                              Local, vec![]).unwrap();
-        assert_eq!(original_list, Value::List(vec![
-            Value::String("testing1".to_string()),
-            Value::String("testing2".to_string()),
-            Value::String("testing3".to_string()),
-        ]));
+	    let original_list = runtime
+		    .get_value("Main", "multi_list", Local, vec![])
+		    .unwrap();
+	    assert_eq!(
+		    original_list,
+		    Value::List(vec![
+			    Value::String("testing1".to_string()),
+			    Value::String("testing2".to_string()),
+			    Value::String("testing3".to_string()),
+		    ])
+	    );
 
         // Test accessing an element of the original list
-        let list_element = runtime.get_value("Main", "multi_list",
-                                             Local, vec![Index(0)]).unwrap();
+	    let list_element = runtime
+		    .get_value("Main", "multi_list", Local, vec![Index(0)])
+		    .unwrap();
         assert_eq!(list_element, Value::String("testing1".to_string()));
     }
 
@@ -141,8 +150,8 @@ mod runtime_tests {
 @InvalidSyntax:
     $this_is_not_valid := [1, 2, 3
 "#
-            .trim()
-            .to_string();
+	        .trim()
+	        .to_string();
 
         let mut runtime = Runtime::new();
         let result = runtime.load_vtc(&invalid_vtc);

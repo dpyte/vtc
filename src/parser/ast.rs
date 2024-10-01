@@ -38,7 +38,7 @@ pub enum Number {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ReferenceType {
     External, // &
-    Local, // %
+    Local,    // %
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -49,7 +49,7 @@ pub struct Reference {
     pub accessors: Vec<Accessor>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Accessor {
     Index(usize),
     Range(usize, usize),
@@ -103,7 +103,7 @@ impl fmt::Display for Value {
                     write!(f, "{}", item)?;
                 }
                 write!(f, "]")
-            },
+            }
             Value::Reference(r) => write!(f, "{}", r),
         }
     }

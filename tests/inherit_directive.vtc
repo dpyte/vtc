@@ -1,7 +1,7 @@
 @test_sample:
-    $value_1 := ["hello", "world", "\0"]
-    $value_2 := [True, False, %test_sample.value_1->(0..2)]
+	$value_1 := ["hello", "world", "\0"]
+	$value_2 := [True, False, %test_sample.value_1->(0..2), False, "Hello", 1, "Testing limit in directive test_inherit." ]
 
-@test_inherit:
-    $inherit_1 := [&test_sample.value_1->(1), &test_sample.value_2->(2), "Testing limit in directive test_inherit."] #  ["world", ["hello", "world"], "Testing limit in directive test_inherit."]
-    $inherit_2 := [ %test_inherit.inherit_1->(0..1), &test_sample.value_2->(0..2) ] # Should output  [["world"], [true, false]]
+@memory:
+	$ptr_ref := [&test_sample.value_1->[0]]
+	$ptr_refs := [ &test_sample.value_1->[0..1] ]

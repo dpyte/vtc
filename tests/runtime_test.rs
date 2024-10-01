@@ -1,44 +1,44 @@
 #[cfg(test)]
 mod runtime_tests {
-    use std::path::PathBuf;
-    use vtc::parser::ast::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
-    use vtc::parser::ast::Accessor::Index;
-    use vtc::parser::ast::ReferenceType::{External, Local};
-    use vtc::runtime::runtime::{Runtime, RuntimeError};
+	use std::path::PathBuf;
+	use vtc::parser::ast::ReferenceType::{External, Local};
+	use vtc::parser::ast::Value::{List, String};
+	use vtc::parser::ast::{
+		Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile,
+	};
+	use vtc::runtime::runtime::{Runtime, RuntimeError};
 
-    fn create_test_vtc_file() -> VtcFile {
+	fn create_test_vtc_file() -> VtcFile {
         VtcFile {
-            namespaces: vec![
-                Namespace {
-                    name: "Test".to_string(),
-                    variables: vec![
-                        Variable {
-                            name: "string_var".to_string(),
-                            value: Value::String("Hello, World!".to_string()),
-                        },
-                        Variable {
-                            name: "int_var".to_string(),
-                            value: Value::Number(Number::Integer(42)),
-                        },
-                        Variable {
-                            name: "float_var".to_string(),
-                            value: Value::Number(Number::Float(3.14)),
-                        },
-                        Variable {
-                            name: "bool_var".to_string(),
-                            value: Value::Boolean(true),
-                        },
-                        Variable {
-                            name: "list_var".to_string(),
-                            value: Value::List(vec![
-                                Value::Number(Number::Integer(1)),
-                                Value::Number(Number::Integer(2)),
-                                Value::Number(Number::Integer(3)),
-                            ]),
-                        },
-                    ],
-                },
-            ],
+	        namespaces: vec![Namespace {
+		        name: "Test".to_string(),
+		        variables: vec![
+			        Variable {
+				        name: "string_var".to_string(),
+				        value: Value::String("Hello, World!".to_string()),
+			        },
+			        Variable {
+				        name: "int_var".to_string(),
+				        value: Value::Number(Number::Integer(42)),
+			        },
+			        Variable {
+				        name: "float_var".to_string(),
+				        value: Value::Number(Number::Float(3.14)),
+			        },
+			        Variable {
+				        name: "bool_var".to_string(),
+				        value: Value::Boolean(true),
+			        },
+			        Variable {
+				        name: "list_var".to_string(),
+				        value: Value::List(vec![
+					        Value::Number(Number::Integer(1)),
+					        Value::Number(Number::Integer(2)),
+					        Value::Number(Number::Integer(3)),
+				        ]),
+			        },
+		        ],
+	        }],
         }
     }
 
@@ -99,10 +99,7 @@ mod runtime_tests {
 
         let test_value = runtime.get_value_with_ref(&reference).unwrap();
 
-        assert_eq!(
-            test_value,
-            Value::Number(Number::Integer(2))
-        );
+	    assert_eq!(test_value, Value::Number(Number::Integer(2)));
     }
 
     #[test]
@@ -183,21 +180,35 @@ mod runtime_tests {
     #[test]
     fn test_read_file() {
         let mut runtime = Runtime::new();
-        runtime.read_file(PathBuf::from("./tests/inherit_directive.vtc".to_string())).unwrap();
+	    runtime
+		    .read_file(PathBuf::from("./tests/inherit_directive.vtc".to_string()))
+		    .unwrap();
 
-        let test_sample_value_1 = runtime.get_value("test_sample", "value_1",
-                                                Local, vec![]).unwrap();
-        assert_eq!(test_sample_value_1, Value::List(vec![
-            Value::String("hello".to_string()),
-            Value::String("world".to_string()),
-            Value::String("\\0".to_string()),
-        ]));
+	    let test_sample_value_1 = runtime
+		    .get_value("test_sample", "value_1", Local, vec![])
+		    .unwrap();
+	    assert_eq!(
+		    test_sample_value_1,
+		    List(vec![
+			    String("hello".to_string()),
+			    String("world".to_string()),
+			    String("\\0".to_string()),
+		    ])
+	    );
 
-        let inherit_value_1 = runtime.get_value("test_inherit", "value_1", External, vec![Index(0)]).unwrap();
-        assert_eq!(inherit_value_1, Value::List(vec![
-            Value::String("hello".to_string()),
-            Value::String("world".to_string()),
-            Value::String("\\0".to_string()),
-        ]));
+	    let inherit_value_1 = runtime
+		    .get_value("test_inherit", "inherit_1", External, vec![])
+		    .unwrap();
+	    assert_eq!(
+		    inherit_value_1,
+		    List(vec![
+			    String("world".to_string()),
+			    List(vec![
+				    String("hello".to_string()),
+				    String("world".to_string())
+			    ]),
+			    String("Testing limit in directive test_inherit.".to_string()),
+		    ])
+	    );
     }
 }

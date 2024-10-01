@@ -1,3 +1,3 @@
-pub mod lexer;
-pub mod grammar;
 pub mod ast;
+pub mod grammar;
+pub mod lexer;

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use smallvec::SmallVec;
 use crate::parser::ast::*;
 use crate::parser::lexer::Token;
 

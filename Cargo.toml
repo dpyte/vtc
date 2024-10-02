@@ -10,6 +10,8 @@ serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.63"
 smallvec = "1.10.0"
 string_cache = "0.8"
+lasso = "0.7.3"
+rustc-hash = "2.0.0"
 
 [dev-dependencies]
 criterion = "0.5.1"

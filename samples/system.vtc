@@ -1,0 +1,249 @@
+@cpu_config:
+    $architecture := "ARM Cortex-M4"
+    $clock_speed := 168000000
+    $cores_enabled := [True, True, False, False]
+    $fpu_enabled := True
+    $instruction_cache_size := 16384
+    $data_cache_size := 16384
+    $l2_cache_size := 131072
+    $prefetch_enabled := True
+    $branch_prediction_enabled := True
+    $simd_support := ["NEON", "VFPv4"]
+    $endianness := "little"
+    $privilege_levels := ["user", "privileged", "system"]
+    $pipeline_stages := 8
+    $out_of_order_execution := False
+
+@memory_management:
+    $total_ram := 262144
+    $total_flash := 1048576
+    $mmu_enabled := True
+    $mpu_enabled := True
+    $mpu_regions := [
+        [0x00000000, 0x0007FFFF, "rx"],
+        [0x20000000, 0x2003FFFF, "rwx"],
+        [0x40000000, 0x4007FFFF, "rw"],
+        [0xE0000000, 0xE00FFFFF, "rx"]
+    ]
+    $stack_start := 0x20040000
+    $heap_start := 0x20020000
+    $heap_size := 65536
+    $dma_buffers := [0x20010000, 0x20015000]
+    $memory_protection := True
+    $memory_encryption := False
+    $ecc_enabled := True
+    $memory_scrubbing_interval := 3600
+
+@interrupt_vector_table:
+    $base_address := 0x08000000
+    $vectors := [
+        [0, "reset_handler"],
+        [1, "nmi_handler"],
+        [2, "hard_fault_handler"],
+        [3, "mem_manage_handler"],
+        [4, "bus_fault_handler"],
+        [5, "usage_fault_handler"],
+        [11, "sv_call_handler"],
+        [14, "pend_sv_handler"],
+        [15, "sys_tick_handler"]
+    ]
+    $custom_interrupts := [
+        [16, "wwdg_irq_handler"],
+        [17, "pvd_irq_handler"],
+        [18, "tamp_stamp_irq_handler"],
+        [19, "rtc_wkup_irq_handler"],
+        [20, "flash_irq_handler"],
+        [21, "rcc_irq_handler"],
+        [22, "exti0_irq_handler"],
+        [23, "exti1_irq_handler"]
+    ]
+    $interrupt_priority_levels := 16
+    $nested_vectored_interrupt_controller := True
+    $interrupt_stack_size := 1024
+
+@io_configuration:
+    $gpio_base_address := 0x40020000
+    $uart_base_address := 0x40011000
+    $spi_base_address := 0x40013000
+    $i2c_base_address := 0x40005400
+    $adc_base_address := 0x40012000
+    $dac_base_address := 0x40007400
+    $timer_base_address := 0x40000000
+    $watchdog_base_address := 0x40002C00
+    $rtc_base_address := 0x40002800
+    $usb_base_address := 0x50000000
+    $ethernet_base_address := 0x40028000
+    $dma_base_address := 0x40026000
+    $crc_base_address := 0x40023000
+
+@clock_config:
+    $main_clock_source := "PLL"
+    $hse_frequency := 8000000
+    $pll_m := 8
+    $pll_n := 336
+    $pll_p := 2
+    $pll_q := 7
+    $ahb_prescaler := 1
+    $apb1_prescaler := 4
+    $apb2_prescaler := 2
+    $rtc_clock_source := "LSE"
+    $lse_frequency := 32768
+    $systick_clock_source := "AHB/8"
+    $mco1_source := "HSI"
+    $mco2_source := "SYSCLK"
+
+@power_management:
+    $voltage_scaling := "scale1"
+    $low_power_run_mode_enabled := True
+    $sleep_on_exit := False
+    $wakeup_sources := ["RTC", "EXTI"]
+    $standby_mode_enabled := True
+    $vbat_monitoring_enabled := True
+    $backup_domain_access := True
+    $battery_powered_domain := [0x40002850, 0x40002864]
+
+@dma_controller:
+    $streams := 8
+    $channels_per_stream := 8
+    $fifo_size := 4
+    $burst_transfer_enabled := True
+    $peripheral_increment_offset_size := 4
+    $double_buffer_mode_enabled := True
+    $stream_priorities := ["low", "medium", "high", "very_high"]
+
+@cache_config:
+    $instruction_cache_associativity := 2
+    $data_cache_associativity := 2
+    $cache_line_size := 32
+    $write_through_enabled := False
+    $write_back_enabled := True
+    $cache_replacement_policy := "LRU"
+    $cache_lockdown_enabled := True
+
+@bus_settings:
+    $ahb_matrix_config := [
+        ["Flash", "SRAM1", "SRAM2"],
+        ["DMA1", "DMA2"],
+        ["Ethernet"],
+        ["USB OTG HS", "USB OTG FS"],
+        ["FSMC"]
+    ]
+    $apb1_peripherals := [
+        "TIM2", "TIM3", "TIM4", "TIM5", "TIM6", "TIM7", "TIM12", "TIM13", "TIM14",
+        "WWDG", "SPI2", "SPI3", "USART2", "USART3", "UART4", "UART5", "I2C1", "I2C2", "I2C3",
+        "CAN1", "CAN2", "PWR", "DAC", "UART7", "UART8"
+    ]
+    $apb2_peripherals := [
+        "TIM1", "TIM8", "USART1", "USART6", "ADC1", "ADC2", "ADC3", "SDIO", "SPI1", "SPI4",
+        "SYSCFG", "TIM9", "TIM10", "TIM11", "SPI5", "SPI6"
+    ]
+    $ahb_burst_enabled := True
+    $apb_wait_states := 1
+
+@peripheral_config:
+    $adc_resolution := 12
+    $adc_sample_time := 3
+    $dac_resolution := 12
+    $uart_baud_rate := 115200
+    $spi_max_clock := 42000000
+    $i2c_clock_speed := 400000
+    $can_bit_rate := 500000
+    $ethernet_mii_mode := "RMII"
+    $usb_phy_type := "internal"
+    $timer_max_count := 65535
+    $watchdog_timeout := 5000
+
+@boot_sequence:
+    $boot_source := "internal_flash"
+    $boot_address := 0x08000000
+    $bootloader_size := 16384
+    $stack_pointer_init := 0x20040000
+    $vector_table_offset := 0x0000
+    $option_bytes := [0x0A5, 0xFD, 0xC3, 0x11]
+    $clock_init_sequence := [
+        "enable_hse",
+        "configure_pll",
+        "enable_pll",
+        "switch_to_pll"
+    ]
+    $peripheral_init_sequence := [
+        "configure_gpio",
+        "configure_nvic",
+        "configure_dma",
+        "configure_timers",
+        "configure_communication_interfaces"
+    ]
+
+@debug_settings:
+    $jtag_enabled := True
+    $swd_enabled := True
+    $etm_trace_enabled := True
+    $itm_trace_enabled := True
+    $debug_uart := "USART1"
+    $debug_uart_baudrate := 2000000
+    $breakpoints_available := 6
+    $watchpoints_available := 4
+    $trace_buffer_size := 4096
+    $fault_logging_enabled := True
+    $fault_log_address := 0x20000000
+
+@security_settings:
+    $secure_boot_enabled := True
+    $flash_read_protection_level := 1
+    $debug_port_lock := True
+    $tamper_detection_enabled := True
+    $random_number_generator_enabled := True
+    $aes_acceleration_enabled := True
+    $sha_acceleration_enabled := True
+    $secure_firmware_update_enabled := True
+    $trusted_execution_environment := False
+
+@system_control:
+    $systick_reload_value := 168000
+    $nvic_priority_grouping := 3
+    $fpu_exception_masking := True
+    $usage_fault_detection := [
+        "divide_by_zero",
+        "unaligned_access",
+        "no_coprocessor",
+        "invalid_pc",
+        "invalid_state",
+        "undefined_instruction"
+    ]
+    $hard_fault_debug_enabled := True
+    $memory_management_fault_enabled := True
+    $bus_fault_enabled := True
+    $scb_configuration := [
+        "enable_sleep_on_exit",
+        "enable_deep_sleep",
+        "disable_interrupts_when_returning_from_interrupt"
+    ]
+    $mpu_control := [
+        "enable_default_memory_map",
+        "enable_mpu_during_fault_handlers",
+        "enable_mpu_during_nmi_handler"
+    ]
+
+@hardware_specific:
+    $temperature_sensor_enabled := True
+    $voltage_reference_enabled := True
+    $backup_sram_enabled := True
+    $real_time_clock_enabled := True
+    $external_oscillator_startup_time := 5000
+    $internal_voltage_regulator_mode := "normal"
+    $brown_out_reset_level := 3
+    $flash_wait_states := 5
+    $unique_device_id_address := 0x1FFF7A10
+    $flash_protection_sectors := [0xF1, 0xF2, 0xF3, 0xF4]
+
+@performance_monitoring:
+    $cycle_counter_enabled := True
+    $instruction_counter_enabled := True
+    $cache_hit_counter_enabled := True
+    $cache_miss_counter_enabled := True
+    $branch_prediction_counter_enabled := True
+    $bus_fault_counter_enabled := True
+    $interrupt_latency_counter_enabled := True
+    $sleep_mode_counter_enabled := True
+    $performance_monitor_interrupt_enabled := True
+

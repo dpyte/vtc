@@ -1,4 +1,7 @@
 use std::fmt;
+use std::rc::Rc;
+use smallvec::SmallVec;
+use crate::SMALL_VEC_SIZE;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VtcFile {

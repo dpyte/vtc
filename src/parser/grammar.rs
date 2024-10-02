@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<VtcFile, String> {
         let mut namespaces = Vec::new();
         while self.position < self.tokens.len() {
-            namespaces.push(self.parse_namespace()?);
+            namespaces.push(Rc::new(self.parse_namespace()?));
         }
         Ok(VtcFile { namespaces })
     }
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
     fn parse_namespace(&mut self) -> Result<Namespace, String> {
         self.expect_token(|t| matches!(t, Token::Namespace(_)))?;
         let name = match &self.tokens[self.position - 1] {
-            Token::Namespace(n) => n.clone(),
+            Token::Namespace(n) => Rc::new(n.clone()),
             _ => unreachable!(),
         };
         self.expect_token(|t| *t == Token::Colon)?;
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
             .peek_token()
             .map_or(false, |t| matches!(t, Token::Variable(_)))
         {
-            variables.push(self.parse_variable()?);
+            variables.push(Rc::new(self.parse_variable()?));
         }
 
         Ok(Namespace { name, variables })
@@ -46,31 +46,28 @@ impl<'a> Parser<'a> {
     fn parse_variable(&mut self) -> Result<Variable, String> {
         self.expect_token(|t| matches!(t, Token::Variable(_)))?;
         let name = match &self.tokens[self.position - 1] {
-            Token::Variable(n) => n.clone(),
+            Token::Variable(n) => Rc::new(n.clone()),
             _ => unreachable!(),
         };
         self.expect_token(|t| *t == Token::Assign)?;
-        let value = self.parse_value()?;
+        let value = Rc::new(self.parse_value()?);
         Ok(Variable { name, value })
     }
 
     fn parse_value(&mut self) -> Result<Value, String> {
         match self.next_token() {
-            Some(token) => {
-                println!("Parsing value token: {:?}", token); // Debug print
-                match token {
-                    Token::OpenBracket => self.parse_list(),
-                    Token::String(s) => Ok(Value::String(s.clone())),
-                    Token::Integer(i) => Ok(Value::Number(Number::Integer(*i))),
-                    Token::Float(f) => Ok(Value::Number(Number::Float(*f))),
-                    Token::Binary(b) => Ok(Value::Number(Number::Binary(*b))),
-                    Token::Hexadecimal(h) => Ok(Value::Number(Number::Hexadecimal(*h))),
-                    Token::Boolean(b) => Ok(Value::Boolean(*b)),
-                    Token::Nil => Ok(Value::Nil),
-                    Token::Reference(_) => self.parse_reference().map(Value::Reference),
-                    _ => Err(format!("Unexpected token when parsing value: {:?}", token)),
-                }
-            }
+            Some(token) => match token {
+                Token::OpenBracket => self.parse_list(),
+                Token::String(s) => Ok(Value::String(Rc::new(s.clone()))),
+                Token::Integer(i) => Ok(Value::Number(Number::Integer(*i))),
+                Token::Float(f) => Ok(Value::Number(Number::Float(*f))),
+                Token::Binary(b) => Ok(Value::Number(Number::Binary(*b))),
+                Token::Hexadecimal(h) => Ok(Value::Number(Number::Hexadecimal(*h))),
+                Token::Boolean(b) => Ok(Value::Boolean(*b)),
+                Token::Nil => Ok(Value::Nil),
+                Token::Reference(_) => self.parse_reference().map(|r| Value::Reference(Rc::new(r))),
+                _ => Err(format!("Unexpected token when parsing value: {:?}", token)),
+            },
             None => Err("Unexpected end of input when parsing value".to_string()),
         }
     }
@@ -83,8 +80,8 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            let vals = self.parse_value()?;
-            values.push(vals);
+            let val = Rc::new(self.parse_value()?);
+            values.push(val);
             match self.peek_token() {
                 Some(&Token::Comma) => {
                     self.next_token();
@@ -93,7 +90,7 @@ impl<'a> Parser<'a> {
                 _ => return Err("Expected ',' or ']'".to_string()),
             }
         }
-        Ok(Value::List(values))
+        Ok(Value::List(Rc::new(values)))
     }
 
     fn parse_reference(&mut self) -> Result<Reference, String> {
@@ -101,8 +98,6 @@ impl<'a> Parser<'a> {
             Token::Reference(r) => r,
             _ => return Err("Expected reference".to_string()),
         };
-
-        println!("Parsing reference token: {:?}", reference_token); // Debug print
 
         let (ref_type, rest) = if reference_token.starts_with('&') {
             (ReferenceType::External, &reference_token[1..])
@@ -114,12 +109,12 @@ impl<'a> Parser<'a> {
 
         let parts: Vec<&str> = rest.split('.').collect();
         let (namespace, variable) = match parts.len() {
-            1 => (None, parts[0].to_string()),
-            2 => (Some(parts[0].to_string()), parts[1].to_string()),
+            1 => (None, Rc::new(parts[0].to_string())),
+            2 => (Some(Rc::new(parts[0].to_string())), Rc::new(parts[1].to_string())),
             _ => return Err("Invalid reference format".to_string()),
         };
 
-        let mut accessors = Vec::new();
+        let mut accessors = SmallVec::new();
         while self.peek_token() == Some(&Token::Pointer) {
             self.next_token();
             accessors.push(self.parse_accessor()?);
@@ -135,14 +130,11 @@ impl<'a> Parser<'a> {
 
     fn parse_accessor(&mut self) -> Result<Accessor, String> {
         match self.next_token() {
-            Some(token) => {
-                println!("Parsing accessor token: {:?}", token); // Debug print
-                match token {
-                    Token::OpenParen => self.parse_index_or_range(),
-                    Token::OpenBracket => self.parse_key(),
-                    _ => Err(format!("Expected accessor, found {:?}", token)),
-                }
-            }
+            Some(token) => match token {
+                Token::OpenParen => self.parse_index_or_range(),
+                Token::OpenBracket => self.parse_key(),
+                _ => Err(format!("Expected accessor, found {:?}", token)),
+            },
             None => Err("Unexpected end of input when parsing accessor".to_string()),
         }
     }
@@ -164,24 +156,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_key(&mut self) -> Result<Accessor, String> {
-        let start = self.expect_token(|t| matches!(t, Token::Integer(_) | Token::Identifier(_)))?;
-        if self.peek_token() == Some(&Token::Range) {
-            self.next_token(); // consume the '..'
-            let end = self.expect_token(|t| matches!(t, Token::Integer(_)))?;
-            self.expect_token(|t| *t == Token::CloseBracket)?;
-            Ok(Accessor::Range(
-                start.parse::<usize>().unwrap(),
-                end.parse::<usize>().unwrap(),
-            ))
-        } else {
-            self.expect_token(|t| *t == Token::CloseBracket)?;
-            if let Ok(index) = start.parse::<usize>() {
-                Ok(Accessor::Index(index))
-            } else {
-                Ok(Accessor::Key(start))
-            }
-        }
+        let key = self.expect_token(|t| matches!(t, Token::String(_) | Token::Identifier(_)))?;
+        self.expect_token(|t| *t == Token::CloseBracket)?;
+        Ok(Accessor::Key(Rc::new(key)))
     }
+
     fn next_token(&mut self) -> Option<&Token> {
         if self.position < self.tokens.len() {
             let token = &self.tokens[self.position];

@@ -3,34 +3,34 @@ use std::rc::Rc;
 use smallvec::SmallVec;
 use crate::SMALL_VEC_SIZE;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VtcFile {
-    pub namespaces: Vec<Namespace>,
+    pub namespaces: Vec<Rc<Namespace>>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Namespace {
-    pub name: String,
-    pub variables: Vec<Variable>,
+    pub name: Rc<String>,
+    pub variables: Vec<Rc<Variable>>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Variable {
-    pub name: String,
-    pub value: Value,
+    pub name: Rc<String>,
+    pub value: Rc<Value>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    String(String),
+    String(Rc<String>),
     Number(Number),
     Boolean(bool),
     Nil,
-    List(Vec<Value>),
-    Reference(Reference),
+    List(Rc<Vec<Rc<Value>>>),
+    Reference(Rc<Reference>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Number {
     Integer(i64),
     Float(f64),
@@ -38,32 +38,33 @@ pub enum Number {
     Hexadecimal(i64),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ReferenceType {
     External, // &
     Local,    // %
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Reference {
     pub ref_type: ReferenceType,
-    pub namespace: Option<String>,
-    pub variable: String,
-    pub accessors: Vec<Accessor>,
+    pub namespace: Option<Rc<String>>,
+    pub variable: Rc<String>,
+    pub accessors: SmallVec<[Accessor; SMALL_VEC_SIZE]>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Accessor {
     Index(usize),
     Range(usize, usize),
-    Key(String),
+    Key(Rc<String>),
 }
 
+// Implement Display traits (unchanged from previous version)
 impl fmt::Display for VtcFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for namespace in &self.namespaces {
             write!(f, "{}", namespace)?;
-            if namespace != self.namespaces.last().unwrap() {
+            if !Rc::ptr_eq(namespace, self.namespaces.last().unwrap()) {
                 writeln!(f)?;
             }
         }
@@ -76,7 +77,7 @@ impl fmt::Display for Namespace {
         writeln!(f, "@{}:", self.name)?;
         for variable in &self.variables {
             write!(f, "    {}", variable)?;
-            if variable != self.variables.last().unwrap() {
+            if !Rc::ptr_eq(variable, self.variables.last().unwrap()) {
                 writeln!(f)?;
             }
         }

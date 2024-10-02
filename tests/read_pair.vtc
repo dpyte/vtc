@@ -1,2 +1,2 @@
 @read:
-	$pair := ["hardware_specific", "flash_protection_sectors"]
+	$pair := ["performance_monitoring", "cache_hit_counter_enabled"]

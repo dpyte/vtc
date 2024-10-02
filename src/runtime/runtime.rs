@@ -1,15 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
+use std::rc::Rc;
+use smallvec::SmallVec;
 use crate::parser::ast::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
 use crate::parser::grammar::parse;
 use crate::parser::lexer::tokenize;
 use crate::runtime::error::RuntimeError;
 
+
 /// Represents the runtime environment for VTC files.
 #[derive(Debug)]
 pub struct Runtime {
-    namespaces: HashMap<String, HashMap<String, Value>>,
+    namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
 }
 
 impl Runtime {
@@ -21,14 +24,6 @@ impl Runtime {
     }
 
     /// Reads a VTC file from the given path and loads it into the runtime.
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the VTC file.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), RuntimeError>` - Ok if successful, or an error if file reading or parsing fails.
     pub fn load_file(&mut self, path: PathBuf) -> Result<(), RuntimeError> {
         let contents = fs::read_to_string(&path)
             .map_err(|_| RuntimeError::FileReadError(path.to_str().unwrap().to_string()))?;
@@ -36,14 +31,6 @@ impl Runtime {
     }
 
     /// Loads VTC content from a string into the runtime.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - The VTC content as a string.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), RuntimeError>` - Ok if successful, or an error if parsing fails.
     pub fn load_vtc(&mut self, input: &str) -> Result<(), RuntimeError> {
         let vtc_file = self.parse_vtc(input)?;
         self.load_vtc_file(vtc_file)
@@ -64,11 +51,11 @@ impl Runtime {
 
     fn load_vtc_file(&mut self, vtc_file: VtcFile) -> Result<(), RuntimeError> {
         for namespace in vtc_file.namespaces {
-            let variables: HashMap<String, Value> = namespace.variables
-                .into_iter()
-                .map(|var| (var.name.clone(), var.value.clone()))
+            let variables: HashMap<Rc<String>, Rc<Value>> = namespace.variables
+                .iter()
+                .map(|var| (Rc::clone(&var.name), Rc::clone(&var.value)))
                 .collect();
-            self.namespaces.insert(namespace.name.clone(), variables);
+            self.namespaces.insert(Rc::clone(&namespace.name), variables);
         }
         Ok(())
     }
@@ -76,36 +63,18 @@ impl Runtime {
     // Public methods for value retrieval
 
     /// Retrieves a value from the specified namespace and variable.
-    ///
-    /// # Arguments
-    ///
-    /// * `namespace` - The namespace containing the variable.
-    /// * `variable` - The name of the variable.
-    /// * `accessors` - Optional accessors to apply to the value.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<Value, RuntimeError>` - The retrieved value or an error if not found.
-    pub fn get_value(&self, namespace: &str, variable: &str, accessors: &[Accessor]) -> Result<Value, RuntimeError> {
+    pub fn get_value(&self, namespace: &str, variable: &str, accessors: &[Accessor]) -> Result<Rc<Value>, RuntimeError> {
         let reference = Reference {
             ref_type: ReferenceType::Local,
-            namespace: Some(namespace.to_string()),
-            variable: variable.to_string(),
-            accessors: accessors.to_vec(),
+            namespace: Some(Rc::new(namespace.to_string())),
+            variable: Rc::new(variable.to_string()),
+            accessors: SmallVec::from(accessors.to_vec()),
         };
         self.resolve_reference(&reference)
     }
 
     /// Converts a Value to its string representation.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The Value to convert.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<String, RuntimeError>` - The string representation or an error.
-    pub fn to_string(&self, value: Value) -> Result<String, RuntimeError> {
+    pub fn to_string(&self, value: Rc<Value>) -> Result<String, RuntimeError> {
         let mut result = value.to_string();
         result = result[1..result.len()-1].to_string();
         Ok(result)
@@ -116,8 +85,8 @@ impl Runtime {
     /// Retrieves a string value from the specified namespace and variable.
     pub fn get_string(&self, namespace: &str, variable: &str) -> Result<String, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
-            if let Value::String(s) = v {
-                Ok(s.clone())
+            if let Value::String(s) = &**v {
+                Ok((**s).clone())
             } else {
                 Err(RuntimeError::TypeError("Expected string".to_string()))
             }
@@ -127,8 +96,8 @@ impl Runtime {
     /// Retrieves an integer value from the specified namespace and variable.
     pub fn get_integer(&self, namespace: &str, variable: &str) -> Result<i64, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
-            if let Value::Number(Number::Integer(i)) = v {
-                Ok(i.clone())
+            if let Value::Number(Number::Integer(i)) = &**v {
+                Ok(*i)
             } else {
                 Err(RuntimeError::TypeError("Expected integer".to_string()))
             }
@@ -138,8 +107,8 @@ impl Runtime {
     /// Retrieves a float value from the specified namespace and variable.
     pub fn get_float(&self, namespace: &str, variable: &str) -> Result<f64, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
-            if let Value::Number(Number::Float(f)) = v {
-                Ok(f.clone())
+            if let Value::Number(Number::Float(f)) = &**v {
+                Ok(*f)
             } else {
                 Err(RuntimeError::TypeError("Expected float".to_string()))
             }
@@ -149,7 +118,7 @@ impl Runtime {
     /// Retrieves a boolean value from the specified namespace and variable.
     pub fn get_boolean(&self, namespace: &str, variable: &str) -> Result<bool, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
-            if let Value::Boolean(b) = v {
+            if let Value::Boolean(b) = &**v {
                 Ok(*b)
             } else {
                 Err(RuntimeError::TypeError("Expected boolean".to_string()))
@@ -160,8 +129,11 @@ impl Runtime {
     /// Retrieves a list value from the specified namespace and variable.
     pub fn get_list(&self, namespace: &str, variable: &str) -> Result<Vec<Value>, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
-            if let Value::List(l) = v {
-                Ok(l.clone())
+            if let Value::List(l) = &**v {
+                Ok(l
+                    .iter()
+                    .map(|value| (**value).clone())
+                    .collect::<Vec<_>>())
             } else {
                 Err(RuntimeError::TypeError("Expected list".to_string()))
             }
@@ -171,7 +143,7 @@ impl Runtime {
     // Helper method for type-specific value retrieval
     fn get_typed_value<T, F>(&self, namespace: &str, variable: &str, f: F) -> Result<T, RuntimeError>
     where
-        F: FnOnce(&Value) -> Result<T, RuntimeError>,
+        F: FnOnce(&Rc<Value>) -> Result<T, RuntimeError>,
     {
         let value = self.get_value(namespace, variable, &[])?;
         f(&value)
@@ -180,20 +152,20 @@ impl Runtime {
     // Methods for exploring the runtime content
 
     /// Lists all namespaces in the runtime.
-    pub fn list_namespaces(&self) -> Vec<&String> {
+    pub fn list_namespaces(&self) -> Vec<&Rc<String>> {
         self.namespaces.keys().collect()
     }
 
     /// Lists all variables in a specific namespace.
-    pub fn list_variables(&self, namespace: &str) -> Result<Vec<&String>, RuntimeError> {
-        self.namespaces.get(namespace)
+    pub fn list_variables(&self, namespace: &str) -> Result<Vec<&Rc<String>>, RuntimeError> {
+        self.namespaces.get(&Rc::new(namespace.to_string()))
             .map(|vars| vars.keys().collect())
             .ok_or_else(|| RuntimeError::NamespaceNotFound(namespace.to_string()))
     }
 
     // Private methods for reference resolution
 
-    fn resolve_reference(&self, reference: &Reference) -> Result<Value, RuntimeError> {
+    fn resolve_reference(&self, reference: &Reference) -> Result<Rc<Value>, RuntimeError> {
         let mut visited = HashSet::new();
         self.resolve_reference_recursive(reference, &mut visited)
     }
@@ -201,21 +173,21 @@ impl Runtime {
     fn resolve_reference_recursive(
         &self,
         reference: &Reference,
-        visited: &mut HashSet<(String, String)>,
-    ) -> Result<Value, RuntimeError> {
+        visited: &mut HashSet<(Rc<String>, Rc<String>)>,
+    ) -> Result<Rc<Value>, RuntimeError> {
         let namespace = reference.namespace.as_ref()
             .ok_or_else(|| RuntimeError::MissingNamespace)?;
-        let key = (namespace.clone(), reference.variable.clone());
+        let key = (Rc::clone(namespace), Rc::clone(&reference.variable));
 
         if !visited.insert(key.clone()) {
             return Err(RuntimeError::CircularReference);
         }
 
         let variables = self.namespaces.get(namespace)
-            .ok_or_else(|| RuntimeError::NamespaceNotFound(namespace.clone()))?;
+            .ok_or_else(|| RuntimeError::NamespaceNotFound((**namespace).clone()))?;
 
         let mut value = variables.get(&reference.variable)
-            .ok_or_else(|| RuntimeError::VariableNotFound(reference.variable.clone()))?
+            .ok_or_else(|| RuntimeError::VariableNotFound((**reference.variable).parse().unwrap()))?
             .clone();
 
         value = self.resolve_value(value, visited)?;
@@ -230,26 +202,26 @@ impl Runtime {
 
     fn resolve_value(
         &self,
-        value: Value,
-        visited: &mut HashSet<(String, String)>,
-    ) -> Result<Value, RuntimeError> {
-        match value {
+        value: Rc<Value>,
+        visited: &mut HashSet<(Rc<String>, Rc<String>)>,
+    ) -> Result<Rc<Value>, RuntimeError> {
+        match &*value {
             Value::Reference(inner_reference) => {
-                self.resolve_reference_recursive(&inner_reference, visited)
+                self.resolve_reference_recursive(inner_reference, visited)
             }
             Value::List(items) => {
                 let resolved_items = items
-                    .into_iter()
-                    .map(|item| self.resolve_value(item, visited))
+                    .iter()
+                    .map(|item| self.resolve_value(Rc::clone(item), visited))
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(Value::List(resolved_items))
+                Ok(Rc::new(Value::List(Rc::new(resolved_items))))
             }
             _ => Ok(value),
         }
     }
 
-    fn apply_accessor(&self, value: Value, accessor: &Accessor) -> Result<Value, RuntimeError> {
-        match (value, accessor) {
+    fn apply_accessor(&self, value: Rc<Value>, accessor: &Accessor) -> Result<Rc<Value>, RuntimeError> {
+        match (&*value, accessor) {
             (Value::List(list), Accessor::Index(index)) => list
                 .get(*index)
                 .cloned()
@@ -258,19 +230,19 @@ impl Runtime {
                 if *start > *end || *end > list.len() {
                     Err(RuntimeError::InvalidRange(*start, *end))
                 } else {
-                    Ok(Value::List(list[*start..*end].to_vec()))
+                    Ok(Rc::new(Value::List(Rc::new(list[*start..*end].to_vec()))))
                 }
             }
             (Value::String(s), Accessor::Index(index)) => s
                 .chars()
                 .nth(*index)
-                .map(|c| Value::String(c.to_string()))
+                .map(|c| Rc::new(Value::String(Rc::new(c.to_string()))))
                 .ok_or(RuntimeError::IndexOutOfBounds(*index)),
             (Value::String(s), Accessor::Range(start, end)) => {
                 if *start > *end || *end > s.len() {
                     Err(RuntimeError::InvalidRange(*start, *end))
                 } else {
-                    Ok(Value::String(s[*start..*end].to_string()))
+                    Ok(Rc::new(Value::String(Rc::new(s[*start..*end].to_string()))))
                 }
             }
             (_, Accessor::Key(key)) => Err(RuntimeError::InvalidAccessor(format!(

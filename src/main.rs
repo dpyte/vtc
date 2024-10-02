@@ -14,7 +14,7 @@ fn main() -> Result<(), RuntimeError> {
         read_rt.get_value("read", "pair", &[Index(1)])?)?;
 
     rt.load_file(PathBuf::from("./samples/system.vtc"))?;
-    let mem_ptr = rt.get_list(namespace.as_str(), variable.as_str())?;
+    let mem_ptr = rt.get_boolean(namespace.as_str(), variable.as_str())?;
     println!("=> {:?}", mem_ptr);
 
     Ok(())

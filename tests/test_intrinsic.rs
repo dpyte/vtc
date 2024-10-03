@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
 	use std::collections::HashSet;
+	use std::path::PathBuf;
 	use std::rc::Rc;
 	use vtc::runtime::runtime::Runtime;
 	use vtc::{Number, Value};
@@ -108,5 +109,35 @@ mod tests {
 		])));
 		let result = rt.resolve_intrinsics(mismatched_intrinsic, &mut HashSet::new());
 		assert!(matches!(result, Err(RuntimeError::TypeError(_))));
+	}
+
+	#[test]
+	fn test_large_intrinsic() {
+		let rt = Runtime::from(PathBuf::from("./samples/large_config.vtc")).unwrap();
+		let result = rt.get_value("string_operations", "lowercase", &[]).unwrap();
+		println!(">> {:?}", result);
+		let _res = result;
+	}
+
+
+	// @conditional_logic:
+	//     $condition_1 := [std_gt!!, %user_data.active_users, 500000]
+	#[test]
+	fn test_gt_intrinsic() {
+		let rt = Runtime::from(PathBuf::from("./samples/large_config.vtc")).unwrap();
+		let result = rt.get_value("conditional_logic", "condition_1", &[]).unwrap();
+		println!(">> {:?}", result);
+		assert_eq!(*result, Value::Boolean(true));
+	}
+
+	// @conditional_logic:
+	//     $condition_1 := [std_gt!!, %user_data.active_users, 500000]
+	//     $condition_2 := [std_lt!!, %metrics.error_rates->(0), 0.05]
+	#[test]
+	fn test_lt_intrinsic() {
+		let rt = Runtime::from(PathBuf::from("./samples/large_config.vtc")).unwrap();
+		let result = rt.get_value("conditional_logic", "condition_2", &[]).unwrap();
+		println!(">> {:?}", result);
+		assert_eq!(*result, Value::Boolean(true));
 	}
 }

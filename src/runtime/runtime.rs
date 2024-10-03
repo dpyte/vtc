@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::hash::Hash;
 use std::path::PathBuf;
 use std::rc::Rc;
 

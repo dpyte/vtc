@@ -1,9 +1,196 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use base64::{decode, encode};
+use sha2::{Digest, Sha256};
+
 use crate::{Number, Value};
 
 pub type VtcFn = Box<dyn Fn(Vec<Rc<Value>>) -> Rc<Value>>;
+
+
+// Helper functions
+fn extract_number(value: &Rc<Value>) -> Number {
+	match &**value {
+		Value::Number(n) => n.clone(),
+		_ => panic!("Expected a Number value"),
+	}
+}
+
+fn extract_string(value: &Rc<Value>) -> String {
+	match &**value {
+		Value::String(s) => (**s).clone(),
+		_ => panic!("Expected a String value"),
+	}
+}
+
+// Wrapper functions for arithmetic operations
+macro_rules! create_arithmetic_wrapper {
+    ($name:ident, $func:ident) => {
+        fn $name(args: Vec<Rc<Value>>) -> Rc<Value> {
+            if args.len() != 2 {
+                panic!(concat!(stringify!($func), " expects 2 arguments"));
+            }
+            let n1 = extract_number(&args[0]);
+            let n2 = extract_number(&args[1]);
+            Rc::new(Value::Number($func(n1, n2)))
+        }
+    };
+}
+
+create_arithmetic_wrapper!(std_add_int_wrapper, std_add_int);
+create_arithmetic_wrapper!(std_sub_int_wrapper, std_sub_int);
+create_arithmetic_wrapper!(std_mul_int_wrapper, std_mul_int);
+create_arithmetic_wrapper!(std_div_int_wrapper, std_div_int);
+create_arithmetic_wrapper!(std_mod_int_wrapper, std_mod_int);
+create_arithmetic_wrapper!(std_add_float_wrapper, std_add_float);
+create_arithmetic_wrapper!(std_sub_float_wrapper, std_sub_float);
+create_arithmetic_wrapper!(std_mul_float_wrapper, std_mul_float);
+create_arithmetic_wrapper!(std_div_float_wrapper, std_div_float);
+
+// Wrapper functions for conversion operations
+fn std_int_to_float_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_int_to_float expects 1 argument");
+	}
+	let n = extract_number(&args[0]);
+	Rc::new(Value::Number(std_int_to_float(n)))
+}
+
+fn std_float_to_int_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_float_to_int expects 1 argument");
+	}
+	let n = extract_number(&args[0]);
+	Rc::new(Value::Number(std_float_to_int(n)))
+}
+
+// Wrapper functions for bitwise operations
+create_arithmetic_wrapper!(std_bitwise_and_wrapper, std_bitwise_and);
+create_arithmetic_wrapper!(std_bitwise_or_wrapper, std_bitwise_or);
+create_arithmetic_wrapper!(std_bitwise_xor_wrapper, std_bitwise_xor);
+
+// String operations
+fn std_to_uppercase(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_to_uppercase expects 1 argument");
+	}
+	let s = extract_string(&args[0]);
+	Rc::new(Value::String(Rc::new(s.to_uppercase())))
+}
+
+fn std_to_lowercase(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_to_lowercase expects 1 argument");
+	}
+	let s = extract_string(&args[0]);
+	Rc::new(Value::String(Rc::new(s.to_lowercase())))
+}
+
+fn std_substring(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 3 {
+		panic!("std_substring expects 3 arguments");
+	}
+	let s = extract_string(&args[0]);
+	let start = extract_number(&args[1]);
+	let end = extract_number(&args[2]);
+
+	if let (Number::Integer(start), Number::Integer(end)) = (start, end) {
+		let start = start as usize;
+		let end = end as usize;
+		if start > end || end > s.len() {
+			panic!("Invalid range for substring");
+		}
+		Rc::new(Value::String(Rc::new(s[start..end].to_string())))
+	} else {
+		panic!("Start and end indices must be integers");
+	}
+}
+
+fn std_concat(args: Vec<Rc<Value>>) -> Rc<Value> {
+	let mut result = String::new();
+	for arg in args {
+		result.push_str(&extract_string(&arg));
+	}
+	Rc::new(Value::String(Rc::new(result)))
+}
+
+fn std_replace(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 3 {
+		panic!("std_replace expects 3 arguments");
+	}
+	let s = extract_string(&args[0]);
+	let from = extract_string(&args[1]);
+	let to = extract_string(&args[2]);
+	Rc::new(Value::String(Rc::new(s.replace(&from, &to))))
+}
+
+// Advanced operations
+fn std_base64_encode(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_base64_encode expects 1 argument");
+	}
+	let s = extract_string(&args[0]);
+	Rc::new(Value::String(Rc::new(encode(s))))
+}
+
+fn std_base64_decode(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_base64_decode expects 1 argument");
+	}
+	let s = extract_string(&args[0]);
+	match decode(s) {
+		Ok(decoded) => match String::from_utf8(decoded) {
+			Ok(decoded_str) => Rc::new(Value::String(Rc::new(decoded_str))),
+			Err(_) => panic!("Failed to convert decoded bytes to UTF-8 string"),
+		},
+		Err(_) => panic!("Failed to decode base64 string"),
+	}
+}
+
+fn std_hash(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 2 {
+		panic!("std_hash expects 2 arguments");
+	}
+	let s = extract_string(&args[0]);
+	let algorithm = extract_string(&args[1]);
+	match algorithm.as_str() {
+		"sha256" => {
+			let mut hasher = Sha256::new();
+			hasher.update(s.as_bytes());
+			let result = hasher.finalize();
+			Rc::new(Value::String(Rc::new(format!("{:x}", result))))
+		},
+		_ => panic!("Unsupported hash algorithm: {}", algorithm),
+	}
+}
+
+// Control flow
+fn std_if(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 3 {
+		panic!("std_if expects 3 arguments: condition, true_value, false_value");
+	}
+	match &*args[0] {
+		Value::Boolean(condition) => {
+			if *condition {
+				Rc::clone(&args[1])
+			} else {
+				Rc::clone(&args[2])
+			}
+		},
+		_ => panic!("First argument of std_if must be a boolean"),
+	}
+}
+
+fn std_try(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 2 {
+		panic!("std_try expects 2 arguments: expression, default_value");
+	}
+	// In a real implementation, you'd want to actually try evaluating the first argument
+	// and return the second if it fails. For now, we'll just return the first argument.
+	Rc::clone(&args[0])
+}
+
 
 /// StdLibLoader
 /// Load and manage standard library functions
@@ -11,111 +198,51 @@ pub struct StdLibLoader {
 	loadable: HashMap<String, VtcFn>,
 }
 
-
 impl StdLibLoader {
 	pub fn new() -> Self {
 		let mut loadable = HashMap::new();
 
-		// Helper macro to reduce boilerplate when adding functions
-		macro_rules! add_fn {
-            ($name:expr, $func:expr) => {
-                loadable.insert(
-                    $name.to_string(),
-                    Box::new(move |args: Vec<Rc<Value>>| -> Rc<Value> {
-                        if args.len() != 2 {
-                            panic!("{} expects 2 arguments", $name);
-                        }
-                        let a = &args[0];
-                        let b = &args[1];
-                        if let (Value::Number(n1), Value::Number(n2)) = (a.as_ref(), b.as_ref()) {
-                            Rc::new(Value::Number($func(n1.clone(), n2.clone())))
-                        } else {
-                            panic!("{} expects two Number values", $name);
-                        }
-                    }) as VtcFn
-                );
-            };
-        }
+		// Arithmetic operations
+		loadable.insert("std_add_int".to_string(), Box::new(std_add_int_wrapper) as VtcFn);
+		loadable.insert("std_sub_int".to_string(), Box::new(std_sub_int_wrapper) as VtcFn);
+		loadable.insert("std_mul_int".to_string(), Box::new(std_mul_int_wrapper) as VtcFn);
+		loadable.insert("std_div_int".to_string(), Box::new(std_div_int_wrapper) as VtcFn);
+		loadable.insert("std_mod_int".to_string(), Box::new(std_mod_int_wrapper) as VtcFn);
+		loadable.insert("std_add_float".to_string(), Box::new(std_add_float_wrapper) as VtcFn);
+		loadable.insert("std_sub_float".to_string(), Box::new(std_sub_float_wrapper) as VtcFn);
+		loadable.insert("std_mul_float".to_string(), Box::new(std_mul_float_wrapper) as VtcFn);
+		loadable.insert("std_div_float".to_string(), Box::new(std_div_float_wrapper) as VtcFn);
 
-		// Add integer operations
-		add_fn!("std_add_int", std_add_int);
-		add_fn!("std_sub_int", std_sub_int);
-		add_fn!("std_mul_int", std_mul_int);
-		add_fn!("std_div_int", std_div_int);
-		add_fn!("std_mod_int", std_mod_int);
+		// Conversion operations
+		loadable.insert("std_int_to_float".to_string(), Box::new(std_int_to_float_wrapper) as VtcFn);
+		loadable.insert("std_float_to_int".to_string(), Box::new(std_float_to_int_wrapper) as VtcFn);
 
-		// Add float operations
-		add_fn!("std_add_float", std_add_float);
-		add_fn!("std_sub_float", std_sub_float);
-		add_fn!("std_mul_float", std_mul_float);
-		add_fn!("std_div_float", std_div_float);
+		// Comparison operations
+		loadable.insert("std_eq".to_string(), Box::new(std_eq_wrapper) as VtcFn);
+		loadable.insert("std_lt".to_string(), Box::new(std_lt_wrapper) as VtcFn);
+		loadable.insert("std_gt".to_string(), Box::new(std_gt_wrapper) as VtcFn);
 
-		// Add conversion functions
-		loadable.insert(
-			"std_int_to_float".to_string(),
-			Box::new(|args: Vec<Rc<Value>>| -> Rc<Value> {
-				if args.len() != 1 {
-					panic!("std_int_to_float expects 1 argument");
-				}
-				if let Value::Number(n) = args[0].as_ref() {
-					Rc::new(Value::Number(std_int_to_float(n.clone())))
-				} else {
-					panic!("std_int_to_float expects a Number value");
-				}
-			}) as VtcFn
-		);
+		// Bitwise operations
+		loadable.insert("std_bitwise_and".to_string(), Box::new(std_bitwise_and_wrapper) as VtcFn);
+		loadable.insert("std_bitwise_or".to_string(), Box::new(std_bitwise_or_wrapper) as VtcFn);
+		loadable.insert("std_bitwise_xor".to_string(), Box::new(std_bitwise_xor_wrapper) as VtcFn);
+		loadable.insert("std_bitwise_not".to_string(), Box::new(std_bitwise_not_wrapper) as VtcFn);
 
-		loadable.insert(
-			"std_float_to_int".to_string(),
-			Box::new(|args: Vec<Rc<Value>>| -> Rc<Value> {
-				if args.len() != 1 {
-					panic!("std_float_to_int expects 1 argument");
-				}
-				if let Value::Number(n) = args[0].as_ref() {
-					Rc::new(Value::Number(std_float_to_int(n.clone())))
-				} else {
-					panic!("std_float_to_int expects a Number value");
-				}
-			}) as VtcFn
-		);
+		// String operations
+		loadable.insert("std_to_uppercase".to_string(), Box::new(std_to_uppercase) as VtcFn);
+		loadable.insert("std_to_lowercase".to_string(), Box::new(std_to_lowercase) as VtcFn);
+		loadable.insert("std_substring".to_string(), Box::new(std_substring) as VtcFn);
+		loadable.insert("std_concat".to_string(), Box::new(std_concat) as VtcFn);
+		loadable.insert("std_replace".to_string(), Box::new(std_replace) as VtcFn);
 
-		// Add comparison functions
-		loadable.insert(
-			"std_eq".to_string(),
-			Box::new(|args: Vec<Rc<Value>>| -> Rc<Value> {
-				if args.len() != 2 {
-					panic!("std_eq expects 2 arguments");
-				}
-				let a = &args[0];
-				let b = &args[1];
-				if let (Value::Number(n1), Value::Number(n2)) = (a.as_ref(), b.as_ref()) {
-					Rc::new(Value::Boolean(std_eq(n1.clone(), n2.clone())))
-				} else {
-					panic!("std_eq expects two Number values");
-				}
-			}) as VtcFn
-		);
+		// Advanced operations
+		loadable.insert("std_base64_encode".to_string(), Box::new(std_base64_encode) as VtcFn);
+		loadable.insert("std_base64_decode".to_string(), Box::new(std_base64_decode) as VtcFn);
+		loadable.insert("std_hash".to_string(), Box::new(std_hash) as VtcFn);
 
-		// Similarly, add std_lt and std_gt
-
-		// Add bitwise operations
-		add_fn!("std_bitwise_and", std_bitwise_and);
-		add_fn!("std_bitwise_or", std_bitwise_or);
-		add_fn!("std_bitwise_xor", std_bitwise_xor);
-
-		loadable.insert(
-			"std_bitwise_not".to_string(),
-			Box::new(|args: Vec<Rc<Value>>| -> Rc<Value> {
-				if args.len() != 1 {
-					panic!("std_bitwise_not expects 1 argument");
-				}
-				if let Value::Number(n) = args[0].as_ref() {
-					Rc::new(Value::Number(std_bitwise_not(n.clone())))
-				} else {
-					panic!("std_bitwise_not expects a Number value");
-				}
-			}) as VtcFn
-		);
+		// Control flow
+		loadable.insert("std_if".to_string(), Box::new(std_if) as VtcFn);
+		loadable.insert("std_try".to_string(), Box::new(std_try) as VtcFn);
 
 		Self { loadable }
 	}
@@ -368,6 +495,45 @@ pub fn std_float_to_int(f: Number) -> Number {
 }
 
 // Comparison functions
+
+// Wrapper function for std_eq
+fn std_eq_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 2 {
+		panic!("std_eq expects 2 arguments");
+	}
+	let n1 = extract_number(&args[0]);
+	let n2 = extract_number(&args[1]);
+	Rc::new(Value::Boolean(std_eq(n1, n2)))
+}
+
+// Wrapper function for std_lt
+fn std_lt_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 2 {
+		panic!("std_lt expects 2 arguments");
+	}
+	let n1 = extract_number(&args[0]);
+	let n2 = extract_number(&args[1]);
+	Rc::new(Value::Boolean(std_lt(n1, n2)))
+}
+
+// Wrapper function for std_gt
+fn std_gt_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 2 {
+		panic!("std_gt expects 2 arguments");
+	}
+	let n1 = extract_number(&args[0]);
+	let n2 = extract_number(&args[1]);
+	Rc::new(Value::Boolean(std_gt(n1, n2)))
+}
+
+// Wrapper function for std_bitwise_not
+fn std_bitwise_not_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+	if args.len() != 1 {
+		panic!("std_bitwise_not expects 1 argument");
+	}
+	let n = extract_number(&args[0]);
+	Rc::new(Value::Number(std_bitwise_not(n)))
+}
 
 /// Compares two numbers for equality.
 ///

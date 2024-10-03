@@ -1,4 +1,3 @@
-
 /// Represents all possible runtime errors.
 #[derive(Debug)]
 pub enum RuntimeError {

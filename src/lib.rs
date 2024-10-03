@@ -1,9 +1,9 @@
-use lasso::{Rodeo, Spur};
+use lasso::Rodeo;
 
 pub mod parser;
 pub mod runtime;
-
-pub const SMALL_VEC_SIZE: usize = 64;
+pub mod ffi;
 
 pub type Interner = Rodeo;
-type StringKey = Spur;
+
+pub const SMALL_VEC_SIZE: usize = 64;

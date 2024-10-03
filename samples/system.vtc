@@ -208,7 +208,7 @@
         "no_coprocessor",
         "invalid_pc",
         "invalid_state",
-        "undefined_instruction"
+        &boot_sequence.boot_source
     ]
     $hard_fault_debug_enabled := True
     $memory_management_fault_enabled := True

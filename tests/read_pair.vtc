@@ -1,2 +1,3 @@
 @read:
-	$pair := ["performance_monitoring", "cache_hit_counter_enabled"]
+    $read_from := "./samples/system.vtc"
+	$pair := ["hardware_specific", "unique_device_id_address"]

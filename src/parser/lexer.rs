@@ -7,7 +7,6 @@ use nom::{
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, tuple},
 };
-use nom::combinator::success;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -32,22 +31,24 @@ pub enum Token {
 	Range,
 	Identifier(String),
 	Colon,
-	// Intrinsic(String), // name!!
+	Intrinsic(String), // name!!
 }
 
 pub fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
 	many0(delimited(
 		multispace0,
 		alt((
-			map(parse_namespace, Token::Namespace),
-			map(parse_variable, Token::Variable),
-			value(Token::Assign, tag(":=")),
-			value(Token::OpenBracket, char('[')),
-			value(Token::CloseBracket, char(']')),
-			value(Token::OpenParen, char('(')),
-			value(Token::CloseParen, char(')')),
-			value(Token::Comma, char(',')),
-			// map(parse_intrinsic, Token::Intrinsic),
+			alt((
+				map(parse_namespace, Token::Namespace),
+				map(parse_variable, Token::Variable),
+				value(Token::Assign, tag(":=")),
+				value(Token::OpenBracket, char('[')),
+				value(Token::CloseBracket, char(']')),
+				value(Token::OpenParen, char('(')),
+				value(Token::CloseParen, char(')')),
+				value(Token::Comma, char(',')),
+			)),
+			map(parse_intrinsic, Token::Intrinsic),
 			map(parse_string, Token::String),
 			map(parse_binary, Token::Binary),
 			map(parse_hexadecimal, Token::Hexadecimal),
@@ -70,9 +71,15 @@ pub fn parse_namespace(input: &str) -> IResult<&str, String> {
 	preceded(char('@'), parse_identifier)(input)
 }
 
-// pub fn parse_intrinsic(input: &str) -> IResult<&str, String> {
-// 	preceded(parse_identifier, tag("!!"))(input)
-// }
+pub fn parse_intrinsic(input: &str) -> IResult<&str, String> {
+	recognize(
+		pair(
+			parse_identifier,
+			tag("!!")
+		)
+	)(input)
+		.map(|(i, s)| (i, s.trim_end_matches("!!").to_string()))
+}
 
 pub fn parse_variable(input: &str) -> IResult<&str, String> {
 	preceded(char('$'), parse_identifier)(input)

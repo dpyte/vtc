@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use smallvec::SmallVec;
 
-use crate::parser::ast::*;
 use crate::parser::lexer::Token;
+use crate::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
 
 pub struct Parser<'a> {
 	tokens: &'a [Token],
@@ -60,6 +60,7 @@ impl<'a> Parser<'a> {
 		match self.next_token() {
 			Some(token) => match token {
 				Token::OpenBracket => self.parse_list(),
+				Token::Intrinsic(i) => Ok(Value::Intrinsic(Rc::new(i.clone()))),
 				Token::String(s) => Ok(Value::String(Rc::new(s.clone()))),
 				Token::Integer(i) => Ok(Value::Number(Number::Integer(*i))),
 				Token::Float(f) => Ok(Value::Number(Number::Float(*f))),

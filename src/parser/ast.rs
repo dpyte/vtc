@@ -1,65 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
-
-use smallvec::SmallVec;
-
-use crate::SMALL_VEC_SIZE;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct VtcFile {
-	pub namespaces: Vec<Rc<Namespace>>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Namespace {
-	pub name: Rc<String>,
-	pub variables: Vec<Rc<Variable>>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Variable {
-	pub name: Rc<String>,
-	pub value: Rc<Value>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-	String(Rc<String>),
-	Number(Number),
-	Boolean(bool),
-	Nil,
-	List(Rc<Vec<Rc<Value>>>),
-	Reference(Rc<Reference>),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Number {
-	Integer(i64),
-	Float(f64),
-	Binary(i64),
-	Hexadecimal(i64),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ReferenceType {
-	External, // &
-	Local,    // %
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Reference {
-	pub ref_type: ReferenceType,
-	pub namespace: Option<Rc<String>>,
-	pub variable: Rc<String>,
-	pub accessors: SmallVec<[Accessor; SMALL_VEC_SIZE]>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Accessor {
-	Index(usize),
-	Range(usize, usize),
-	Key(Rc<String>),
-}
+use crate::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
 
 // Implement Display traits (unchanged from previous version)
 impl fmt::Display for VtcFile {
@@ -96,6 +37,7 @@ impl fmt::Display for Variable {
 impl fmt::Display for Value {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
+			Value::Intrinsic(i) => write!(f, "\"{}\"", i),
 			Value::String(s) => write!(f, "\"{}\"", s),
 			Value::Number(n) => write!(f, "{}", n),
 			Value::Boolean(b) => write!(f, "{}", b),

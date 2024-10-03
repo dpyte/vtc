@@ -1,14 +1,16 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::hash::Hash;
 use std::path::PathBuf;
 use std::rc::Rc;
 
 use smallvec::SmallVec;
 
-use crate::parser::ast::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
 use crate::parser::grammar::parse;
 use crate::parser::lexer::tokenize;
 use crate::runtime::error::RuntimeError;
+use crate::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
+use crate::runtime::std::StdLibLoader;
 
 /// Represents the runtime environment for VTC files.
 #[derive(Debug)]
@@ -195,6 +197,7 @@ impl Runtime {
 			.clone();
 
 		value = self.resolve_value(value, visited)?;
+		value = self.resolve_intrinsics(value, visited)?;
 
 		for accessor in &reference.accessors {
 			value = self.apply_accessor(value, accessor)?;
@@ -204,6 +207,7 @@ impl Runtime {
 		Ok(value)
 	}
 
+	// Personal note1: This is going to get somewhat messy... The intrinsics will need to be carefully evaluated...
 	fn resolve_value(
 		&self,
 		value: Rc<Value>,
@@ -214,15 +218,62 @@ impl Runtime {
 				self.resolve_reference_recursive(inner_reference, visited)
 			}
 			Value::List(items) => {
-				let resolved_items = items
-					.iter()
-					.map(|item| self.resolve_value(Rc::clone(item), visited))
-					.collect::<Result<Vec<_>, _>>()?;
-				Ok(Rc::new(Value::List(Rc::new(resolved_items))))
+				// Check if this list is an intrinsic call
+				if let Some(Value::Intrinsic(_)) = items.get(0).map(|v| &**v) {
+					self.resolve_intrinsics(value, visited)
+				} else {
+					// If not, resolve each item in the list
+					let resolved_items = items
+						.iter()
+						.map(|item| self.resolve_value(Rc::clone(item), visited))
+						.collect::<Result<Vec<_>, _>>()?;
+					Ok(Rc::new(Value::List(Rc::new(resolved_items))))
+				}
 			}
 			_ => Ok(value),
 		}
 	}
+
+	pub fn resolve_intrinsics(
+		&self,
+		value: Rc<Value>,
+		visited: &mut HashSet<(Rc<String>, Rc<String>)>,
+	) -> Result<Rc<Value>, RuntimeError> {
+		match &*value {
+			Value::List(items) => {
+				if let Some(Value::Intrinsic(name)) = items.get(0).map(|v| &**v) {
+					let std_lib = StdLibLoader::new();
+					if let Some(func) = std_lib.get_function(name) {
+						let args = self.collect_intrinsic_args(items, visited)?;
+						Ok(func(args))
+					} else {
+						Err(RuntimeError::UnknownIntrinsic((**name).clone()))
+					}
+				} else {
+					// If it's not an intrinsic call, resolve each item in the list
+					let resolved_items = items
+						.iter()
+						.map(|item| self.resolve_intrinsics(Rc::clone(item), visited))
+						.collect::<Result<Vec<_>, _>>()?;
+					Ok(Rc::new(Value::List(Rc::new(resolved_items))))
+				}
+			}
+			_ => Ok(value),
+		}
+	}
+
+	fn collect_intrinsic_args(
+		&self,
+		items: &[Rc<Value>],
+		visited: &mut HashSet<(Rc<String>, Rc<String>)>,
+	) -> Result<Vec<Rc<Value>>, RuntimeError> {
+		// Skip the first item (the intrinsic name) and resolve the rest
+		items.iter()
+			.skip(1)
+			.map(|item| self.resolve_value(Rc::clone(item), visited))
+			.collect()
+	}
+
 
 	fn apply_accessor(&self, value: Rc<Value>, accessor: &Accessor) -> Result<Rc<Value>, RuntimeError> {
 		match (&*value, accessor) {

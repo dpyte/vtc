@@ -12,4 +12,6 @@ pub enum RuntimeError {
 	VariableNotFound(String),
 	FileReadError(String),
 	TypeError(String),
+	UnknownIntrinsic(String),
+	InvalidIntrinsicArgs,
 }

@@ -5,20 +5,40 @@ use std::rc::Rc;
 
 use smallvec::SmallVec;
 
+use crate::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
 use crate::parser::grammar::parse;
 use crate::parser::lexer::tokenize;
 use crate::runtime::error::RuntimeError;
-use crate::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
 use crate::runtime::std::StdLibLoader;
 
-/// Represents the runtime environment for VTC files.
+/// A struct representing the runtime environment of a software program.
 #[derive(Debug)]
 pub struct Runtime {
 	namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
 }
 
+mod lists {
+	use super::*;
+
+	pub fn flatten_value(value: &Value) -> Vec<Value> {
+		let mut result = Vec::new();
+		flatten_value_recursively(value, &mut result);
+		result
+	}
+
+	fn flatten_value_recursively(value: &Value, result: &mut Vec<Value>) {
+		match value {
+			Value::List(list) => {
+				for item in list.iter() {
+					flatten_value_recursively(item, result);
+				}
+			}
+			_ => result.push(value.clone()),
+		}
+	}
+}
+
 impl Runtime {
-	/// Creates a new `Runtime` instance.
 	pub fn new() -> Self {
 		Runtime {
 			namespaces: HashMap::new(),
@@ -31,21 +51,19 @@ impl Runtime {
 		Ok(rt)
 	}
 
-	/// Reads a VTC file from the given path and loads it into the runtime.
+	// File loading methods
 	pub fn load_file(&mut self, path: PathBuf) -> Result<(), RuntimeError> {
 		let contents = fs::read_to_string(&path)
 			.map_err(|_| RuntimeError::FileReadError(path.to_str().unwrap().to_string()))?;
 		self.load_vtc(&contents)
 	}
 
-	/// Loads VTC content from a string into the runtime.
 	pub fn load_vtc(&mut self, input: &str) -> Result<(), RuntimeError> {
 		let vtc_file = self.parse_vtc(input)?;
 		self.load_vtc_file(vtc_file)
 	}
 
-	// Private methods for parsing and loading
-
+	// Parsing methods
 	fn parse_vtc(&self, input: &str) -> Result<VtcFile, RuntimeError> {
 		let (remaining, tokens) = tokenize(input)
 			.map_err(|e| RuntimeError::ParseError(format!("Tokenization failed: {:?}", e)))?;
@@ -66,9 +84,7 @@ impl Runtime {
 		Ok(())
 	}
 
-	// Public methods for value retrieval
-
-	/// Retrieves a value from the specified namespace and variable.
+	// Value retrieval methods
 	pub fn get_value(&self, namespace: &str, variable: &str, accessors: &[Accessor]) -> Result<Rc<Value>, RuntimeError> {
 		let reference = Reference {
 			ref_type: ReferenceType::Local,
@@ -87,18 +103,15 @@ impl Runtime {
 		}
 	}
 
-	/// Retrieves a string value from the specified namespace and variable.
 	pub fn get_string(&self, namespace: &str, variable: &str) -> Result<String, RuntimeError> {
 		let value = self.get_value(namespace, variable, &[])?;
 		self.get_string_value(&value)
 	}
 
-	/// Converts a Value to its string representation.
 	pub fn to_string(&self, value: Rc<Value>) -> Result<String, RuntimeError> {
 		Ok(value.to_string()[1..value.to_string().len() - 1].to_string())
 	}
 
-	/// Retrieves an integer value from the specified namespace and variable.
 	pub fn get_integer(&self, namespace: &str, variable: &str) -> Result<i64, RuntimeError> {
 		self.get_typed_value(namespace, variable, |v| {
 			if let Value::Number(Number::Integer(i)) = &**v {
@@ -109,7 +122,6 @@ impl Runtime {
 		})
 	}
 
-	/// Retrieves a float value from the specified namespace and variable.
 	pub fn get_float(&self, namespace: &str, variable: &str) -> Result<f64, RuntimeError> {
 		self.get_typed_value(namespace, variable, |v| {
 			if let Value::Number(Number::Float(f)) = &**v {
@@ -120,7 +132,6 @@ impl Runtime {
 		})
 	}
 
-	/// Retrieves a boolean value from the specified namespace and variable.
 	pub fn get_boolean(&self, namespace: &str, variable: &str) -> Result<bool, RuntimeError> {
 		self.get_typed_value(namespace, variable, |v| {
 			if let Value::Boolean(b) = &**v {
@@ -131,7 +142,6 @@ impl Runtime {
 		})
 	}
 
-	/// Retrieves a list value from the specified namespace and variable.
 	pub fn get_list(&self, namespace: &str, variable: &str) -> Result<Vec<Value>, RuntimeError> {
 		self.get_typed_value(namespace, variable, |v| {
 			if let Value::List(l) = &**v {
@@ -145,6 +155,34 @@ impl Runtime {
 		})
 	}
 
+	/// Convert list to dictionary.
+	/// Constraints: The size of list must be in multiples of 2.
+	pub fn as_dict(&self, namespace: &str, variable: &str) -> Result<HashMap<String, Value>, RuntimeError> {
+		let values = self.get_list(namespace, variable)?;
+		if values.len() % 2 == 1 {
+			return Err(RuntimeError::ConversionError(
+				format!("Unable to convert {}::{} to dictionary. List length fails to meet the criteria", namespace, variable))
+			)
+		}
+
+		let mut result = HashMap::new();
+		let chunks = values.chunks_exact(2);
+		for chunk in chunks {
+			if let [key, value] = chunk {
+				result.insert((*key).clone().to_string(), value.clone());
+			}
+		}
+		Ok(result)
+	}
+
+
+	/// flattens a nested list to a single dimension list
+	pub fn flatten_list(&self, namespace: &str, variable: &str) -> Result<Vec<Value>, RuntimeError> {
+		let list = self.get_list(namespace, variable)?;
+		let rc_list = list.into_iter().map(|value| Rc::new(value)).collect::<Vec<_>>();
+		Ok(lists::flatten_value(&Value::List(Rc::new(rc_list))))
+	}
+
 	// Helper method for type-specific value retrieval
 	fn get_typed_value<T, F>(&self, namespace: &str, variable: &str, f: F) -> Result<T, RuntimeError>
 	where
@@ -154,22 +192,18 @@ impl Runtime {
 		f(&value)
 	}
 
-	// Methods for exploring the runtime content
-
-	/// Lists all namespaces in the runtime.
+	// Runtime exploration methods
 	pub fn list_namespaces(&self) -> Vec<&Rc<String>> {
 		self.namespaces.keys().collect()
 	}
 
-	/// Lists all variables in a specific namespace.
 	pub fn list_variables(&self, namespace: &str) -> Result<Vec<&Rc<String>>, RuntimeError> {
 		self.namespaces.get(&Rc::new(namespace.to_string()))
 			.map(|vars| vars.keys().collect())
 			.ok_or_else(|| RuntimeError::NamespaceNotFound(namespace.to_string()))
 	}
 
-	// Private methods for reference resolution
-
+	// Reference resolution methods
 	fn resolve_reference(&self, reference: &Reference) -> Result<Rc<Value>, RuntimeError> {
 		let mut visited = HashSet::new();
 		self.resolve_reference_recursive(reference, &mut visited)
@@ -206,7 +240,6 @@ impl Runtime {
 		Ok(value)
 	}
 
-	// Personal note1: This is going to get somewhat messy... The intrinsics will need to be carefully evaluated...
 	fn resolve_value(
 		&self,
 		value: Rc<Value>,
@@ -217,11 +250,9 @@ impl Runtime {
 				self.resolve_reference_recursive(inner_reference, visited)
 			}
 			Value::List(items) => {
-				// Check if this list is an intrinsic call
 				if let Some(Value::Intrinsic(_)) = items.get(0).map(|v| &**v) {
 					self.resolve_intrinsics(value, visited)
 				} else {
-					// If not, resolve each item in the list
 					let resolved_items = items
 						.iter()
 						.map(|item| self.resolve_value(Rc::clone(item), visited))
@@ -249,7 +280,6 @@ impl Runtime {
 						Err(RuntimeError::UnknownIntrinsic((**name).clone()))
 					}
 				} else {
-					// If it's not an intrinsic call, resolve each item in the list
 					let resolved_items = items
 						.iter()
 						.map(|item| self.resolve_intrinsics(Rc::clone(item), visited))
@@ -266,13 +296,11 @@ impl Runtime {
 		items: &[Rc<Value>],
 		visited: &mut HashSet<(Rc<String>, Rc<String>)>,
 	) -> Result<Vec<Rc<Value>>, RuntimeError> {
-		// Skip the first item (the intrinsic name) and resolve the rest
 		items.iter()
 			.skip(1)
 			.map(|item| self.resolve_value(Rc::clone(item), visited))
 			.collect()
 	}
-
 
 	fn apply_accessor(&self, value: Rc<Value>, accessor: &Accessor) -> Result<Rc<Value>, RuntimeError> {
 		match (&*value, accessor) {

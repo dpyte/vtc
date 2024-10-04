@@ -14,4 +14,5 @@ pub enum RuntimeError {
 	TypeError(String),
 	UnknownIntrinsic(String),
 	InvalidIntrinsicArgs,
+	ConversionError(String),
 }

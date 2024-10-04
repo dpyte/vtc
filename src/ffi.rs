@@ -50,7 +50,6 @@ pub extern "C" fn vtc_runtime_load_file(runtime: *mut Runtime, path: *const c_ch
 	}
 
 	let path_str = unsafe { CStr::from_ptr(path).to_str().expect("The provided string could not be read.") };
-
 	let runtime_ref = unsafe{ &mut *runtime };
 
 	match runtime_ref.load_file(PathBuf::from(path_str)) {

@@ -1,4 +1,5 @@
 use std::fmt;
+use std::error::Error;
 
 /// Represents all possible runtime errors.
 #[derive(Debug)]
@@ -39,3 +40,5 @@ impl fmt::Display for RuntimeError {
 		}
 	}
 }
+
+impl Error for RuntimeError {}

@@ -64,3 +64,37 @@ pub enum Accessor {
 	Range(usize, usize),
 	Key(Rc<String>),
 }
+
+impl AsRef<Value> for Value {
+	fn as_ref(&self) -> &Value {
+		self
+	}
+}
+
+impl AsRef<str> for Value {
+	fn as_ref(&self) -> &str {
+		match self {
+			Value::String(s) => s.as_ref(),
+			Value::Intrinsic(s) => s.as_ref(),
+			_ => panic!("Attempted to get str reference from non-string Value"),
+		}
+	}
+}
+
+impl AsRef<[Rc<Value>]> for Value {
+	fn as_ref(&self) -> &[Rc<Value>] {
+		match self {
+			Value::List(list) => list.as_ref(),
+			_ => panic!("Attempted to get list reference from non-list Value"),
+		}
+	}
+}
+
+impl AsRef<bool> for Value {
+	fn as_ref(&self) -> &bool {
+		match self {
+			Value::Boolean(b) => b,
+			_ => panic!("Attempted to get bool reference from non-boolean Value"),
+		}
+	}
+}

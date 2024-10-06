@@ -157,21 +157,33 @@ impl Runtime {
 
 	/// Convert list to dictionary.
 	/// Constraints: The size of list must be in multiples of 2.
-	pub fn as_dict(&self, namespace: &str, variable: &str) -> Result<HashMap<String, Value>, RuntimeError> {
-		let values = self.get_list(namespace, variable)?;
-		if values.len() % 2 == 1 {
-			return Err(RuntimeError::ConversionError(
-				format!("Unable to convert {}::{} to dictionary. List length fails to meet the criteria", namespace, variable))
-			)
-		}
 
+	pub fn as_dict(&self, namespace: &str, variable: &str) -> Result<HashMap<String, Rc<Value>>, RuntimeError> {
+		let values = self.get_list(namespace, variable)?;
 		let mut result = HashMap::new();
-		let chunks = values.chunks_exact(2);
-		for chunk in chunks {
-			if let [key, value] = chunk {
-				result.insert((*key).clone().to_string(), value.clone());
+
+		for value in values {
+			match value.as_ref() {
+				Value::List(inner_list) => {
+					if inner_list.len() != 2 {
+						return Err(RuntimeError::ConversionError(
+							format!("Invalid key-value pair in {}::{}", namespace, variable)
+						));
+					}
+					let key = match inner_list[0].as_ref() {
+						Value::String(s) => s.as_ref().clone(),
+						_ => return Err(RuntimeError::ConversionError(
+							format!("Key must be a string in {}::{}", namespace, variable)
+						)),
+					};
+					result.insert(key, Rc::clone(&inner_list[1]));
+				},
+				_ => return Err(RuntimeError::ConversionError(
+					format!("Expected list of key-value pairs in {}::{}", namespace, variable)
+				)),
 			}
 		}
+
 		Ok(result)
 	}
 

@@ -18,7 +18,7 @@ To use VTC in your Rust project, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vtc = { git = "https://github.com/dpyte/vtc-rs.git" }
+vtc = { git = "https://github.com/dpyte/vtc.git" }
 ```
 
 ## Usage

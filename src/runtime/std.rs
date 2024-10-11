@@ -3,8 +3,8 @@ use std::rc::Rc;
 
 use base64::{decode, encode};
 use sha2::{Digest, Sha256};
-
-use crate::{Number, Value};
+use crate::value::Value;
+use crate::value::Number;
 
 pub type VtcFn = Box<dyn Fn(Vec<Rc<Value>>) -> Rc<Value>>;
 
@@ -102,6 +102,7 @@ mod arithmetic {
 
 // Conversion operations
 mod conversion {
+	use crate::value::Number;
 	use super::*;
 
 	pub fn std_int_to_float(i: Number) -> Number {
@@ -114,13 +115,14 @@ mod conversion {
 	pub fn std_float_to_int(f: Number) -> Number {
 		match f {
 			Number::Float(val) => Number::Integer(val as i64),
-			_ => panic!("Input must be a float: {}", f),
+			_ => panic!("Input must be a float: {:?}", f),
 		}
 	}
 }
 
 // Comparison operations
 mod comparison {
+	use crate::value::Number;
 	use super::*;
 
 	pub fn std_eq(n1: Number, n2: Number) -> bool {
@@ -150,6 +152,7 @@ mod comparison {
 
 // Bitwise operations
 mod bitwise {
+	use crate::value::Number;
 	use super::*;
 
 	pub fn std_bitwise_and(i1: Number, i2: Number) -> Number {
@@ -183,6 +186,7 @@ mod bitwise {
 
 // String operations
 mod string_ops {
+	use crate::value::Value;
 	use super::*;
 
 	pub fn std_to_uppercase(args: Vec<Rc<Value>>) -> Rc<Value> {
@@ -242,6 +246,7 @@ mod string_ops {
 
 // Advanced operations
 mod advanced_ops {
+	use crate::value::Value;
 	use super::*;
 
 	pub fn std_base64_encode(args: Vec<Rc<Value>>) -> Rc<Value> {

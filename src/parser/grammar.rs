@@ -3,7 +3,7 @@ use std::rc::Rc;
 use smallvec::SmallVec;
 
 use crate::parser::lexer::Token;
-use crate::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
+use crate::value::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
 
 pub struct Parser<'a> {
 	tokens: &'a [Token],

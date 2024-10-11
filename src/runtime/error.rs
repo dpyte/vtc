@@ -1,3 +1,4 @@
+use fmt::Display;
 use std::fmt;
 use std::error::Error;
 
@@ -20,7 +21,7 @@ pub enum RuntimeError {
 	ConversionError(String),
 }
 
-impl fmt::Display for RuntimeError {
+impl Display for RuntimeError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			RuntimeError::FileReadError(path) => write!(f, "Failed to read file: {}", path),

@@ -4,8 +4,8 @@ mod tests {
 	use std::path::PathBuf;
 	use std::rc::Rc;
 	use vtc::runtime::runtime::Runtime;
-	use vtc::{Number, Value};
 	use vtc::runtime::error::RuntimeError;
+	use vtc::value::{Number, Value};
 
 	// Helper function to create a runtime with some predefined values
 	fn setup_runtime() -> Runtime {

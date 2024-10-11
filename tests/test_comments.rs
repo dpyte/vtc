@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-	use vtc::runtime::runtime::Runtime;
+	use vtc::runtime::Runtime;
 
 	// Helper function to create a runtime with some predefined values
 	fn setup_runtime() -> Runtime {

@@ -1,6 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
-use crate::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
+use crate::value::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
 
 // Implement Display traits (unchanged from previous version)
 impl fmt::Display for VtcFile {

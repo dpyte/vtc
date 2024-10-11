@@ -1,9 +1,12 @@
+use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
-use std::os::raw::{c_char, c_int, c_double};
+use std::os::raw::{c_char, c_double, c_int};
 use std::ptr;
+use std::rc::Rc;
 use std::slice;
-use crate::runtime::runtime::Runtime;
-use crate::Value;
+
+use crate::runtime::Runtime;
+use crate::value::{Number, Value};
 
 #[repr(C)]
 pub struct CRuntime(*mut Runtime);
@@ -68,10 +71,14 @@ pub extern "C" fn runtime_get_integer(runtime: CRuntime, namespace: *const c_cha
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();
 
-	match runtime.get_integer(namespace, variable) {
-		Ok(i) => {
-			unsafe { *result = i };
-			0
+	match runtime.get_value(namespace, variable, &[]) {
+		Ok(value) => {
+			if let Value::Number(Number::Integer(i)) = &*value {
+				unsafe { *result = *i };
+				0
+			} else {
+				-1
+			}
 		},
 		Err(_) => -1,
 	}
@@ -83,10 +90,14 @@ pub extern "C" fn runtime_get_float(runtime: CRuntime, namespace: *const c_char,
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();
 
-	match runtime.get_float(namespace, variable) {
-		Ok(f) => {
-			unsafe { *result = f };
-			0
+	match runtime.get_value(namespace, variable, &[]) {
+		Ok(value) => {
+			if let Value::Number(Number::Float(f)) = &*value {
+				unsafe { *result = *f };
+				0
+			} else {
+				-1
+			}
 		},
 		Err(_) => -1,
 	}
@@ -98,30 +109,38 @@ pub extern "C" fn runtime_get_boolean(runtime: CRuntime, namespace: *const c_cha
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();
 
-	match runtime.get_boolean(namespace, variable) {
-		Ok(b) => {
-			unsafe { *result = b };
-			0
+	match runtime.get_value(namespace, variable, &[]) {
+		Ok(value) => {
+			if let Value::Boolean(b) = &*value {
+				unsafe { *result = *b };
+				0
+			} else {
+				-1
+			}
 		},
 		Err(_) => -1,
 	}
 }
 
 #[no_mangle]
-pub extern "C" fn runtime_get_list(runtime: CRuntime, namespace: *const c_char, variable: *const c_char, result: *mut *mut Value, length: *mut usize) -> c_int {
+pub extern "C" fn runtime_get_list(runtime: CRuntime, namespace: *const c_char, variable: *const c_char, result: *mut *mut Rc<Value>, length: *mut usize) -> c_int {
 	let runtime = unsafe { runtime.0.as_mut() }.unwrap();
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();
 
-	match runtime.get_list(namespace, variable) {
-		Ok(list) => {
-			let boxed_slice = list.into_boxed_slice();
-			let raw_ptr = Box::into_raw(boxed_slice);
-			unsafe {
-				*result = raw_ptr as *mut Value;
-				*length = (*raw_ptr).len();
+	match runtime.get_value(namespace, variable, &[]) {
+		Ok(value) => {
+			if let Value::List(list) = &*value {
+				let boxed_slice = <Vec<Rc<Value>> as Clone>::clone(&list.clone()).into_boxed_slice();
+				let raw_ptr = Box::into_raw(boxed_slice);
+				unsafe {
+					*result = raw_ptr as *mut Rc<Value>;
+					*length = (*raw_ptr).len();
+				}
+				0
+			} else {
+				-1
 			}
-			0
 		},
 		Err(_) => -1,
 	}
@@ -208,16 +227,14 @@ pub extern "C" fn runtime_list_variables(runtime: CRuntime, namespace: *const c_
 #[no_mangle]
 pub extern "C" fn runtime_free(runtime: CRuntime) {
 	if !runtime.0.is_null() {
-		unsafe { Box::from_raw(runtime.0) };
+		unsafe { drop(Box::from_raw(runtime.0)); }
 	}
 }
 
 #[no_mangle]
 pub extern "C" fn runtime_free_string(s: *mut c_char) {
-	unsafe {
-		if !s.is_null() {
-			CString::from_raw(s);
-		}
+	if !s.is_null() {
+		unsafe { drop(CString::from_raw(s)); }
 	}
 }
 
@@ -227,27 +244,23 @@ pub extern "C" fn runtime_free_string_array(arr: *mut *mut c_char, length: usize
 		if !arr.is_null() {
 			let slice = slice::from_raw_parts_mut(arr, length);
 			for &mut s in slice.iter_mut() {
-				CString::from_raw(s);
+				drop(CString::from_raw(s));
 			}
-			Box::from_raw(slice);
+			drop(Box::from_raw(slice));
 		}
 	}
 }
 
 #[no_mangle]
-pub extern "C" fn runtime_free_value_array(arr: *mut Value, length: usize) {
-	unsafe {
-		if !arr.is_null() {
-			Box::from_raw(slice::from_raw_parts_mut(arr, length));
-		}
+pub extern "C" fn runtime_free_value_array(arr: *mut Rc<Value>, length: usize) {
+	if !arr.is_null() {
+		unsafe { drop(Box::from_raw(slice::from_raw_parts_mut(arr, length))); }
 	}
 }
 
 #[no_mangle]
 pub extern "C" fn runtime_free_dict(dict: *mut c_void) {
-	unsafe {
-		if !dict.is_null() {
-			Box::from_raw(dict as *mut std::collections::HashMap<String, Value>);
-		}
+	if !dict.is_null() {
+		unsafe { drop(Box::from_raw(dict as *mut HashMap<String, Rc<Value>>)); }
 	}
 }

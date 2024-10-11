@@ -1,13 +1,12 @@
 use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_until, take_while1},
-    character::complete::{alpha1, alphanumeric1, char, digit1, multispace0, none_of},
-    combinator::{map, opt, recognize, value},
-    IResult,
-    multi::{many0, many1},
-    sequence::{delimited, pair, preceded, tuple},
+	branch::alt,
+	bytes::complete::{tag, take_until, take_while1},
+	character::complete::{alpha1, alphanumeric1, char, digit1, multispace0, none_of},
+	combinator::{map, opt, recognize, value},
+	multi::{many0, many1},
+	sequence::{delimited, pair, preceded, tuple},
+	IResult,
 };
-use crate::parser::grammar::parse;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {

@@ -7,6 +7,7 @@ use nom::{
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, tuple},
 };
+use crate::parser::grammar::parse;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -32,6 +33,7 @@ pub enum Token {
 	Identifier(String),
 	Colon,
 	Intrinsic(String), // name!!
+	Comment(String),
 }
 
 pub fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
@@ -48,6 +50,7 @@ pub fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
 				value(Token::CloseParen, char(')')),
 				value(Token::Comma, char(',')),
 			)),
+			map(parse_comment, |comment| Token::Comment(comment.to_string())),
 			map(parse_intrinsic, Token::Intrinsic),
 			map(parse_string, Token::String),
 			map(parse_binary, Token::Binary),
@@ -64,6 +67,15 @@ pub fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
 			map(parse_identifier, Token::Identifier),
 		)),
 		multispace0,
+	))(input)
+}
+
+fn parse_comment(input: &str) -> IResult<&str, String> {
+	alt((
+		map(
+			preceded(char('#'), take_until("\n")),
+			|content: &str| content.to_string()
+		),
 	))(input)
 }
 

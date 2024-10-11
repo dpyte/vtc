@@ -165,17 +165,26 @@ impl<'a> Parser<'a> {
 	}
 
 	fn next_token(&mut self) -> Option<&Token> {
-		if self.position < self.tokens.len() {
+		while self.position < self.tokens.len() {
 			let token = &self.tokens[self.position];
 			self.position += 1;
-			Some(token)
-		} else {
-			None
+			if !matches!(token, Token::Comment(_)) {
+				return Some(token);
+			}
 		}
+		None
 	}
 
 	fn peek_token(&self) -> Option<&Token> {
-		self.tokens.get(self.position)
+		let mut pos = self.position;
+		while pos < self.tokens.len() {
+			let token = &self.tokens[pos];
+			if !matches!(token, Token::Comment(_)) {
+				return Some(token);
+			}
+			pos += 1;
+		}
+		None
 	}
 
 	fn expect_token<F>(&mut self, predicate: F) -> Result<String, String>

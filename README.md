@@ -10,7 +10,7 @@ VTC is a powerful and flexible configuration language parser and runtime environ
 - Accessor syntax for indexing and slicing lists and strings
 - Intrinsic functions for performing operations within the configuration
 - High-performance parsing and runtime evaluation
-- Comprehensive error handling and reporting
+- ~~Comprehensive error handling and reporting~~
 
 ## Installation
 
@@ -18,7 +18,7 @@ To use VTC in your Rust project, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vtc = { git = "https://github.com/yourusername/vtc.git" }
+vtc = { git = "https://github.com/dpyte/vtc-rs.git" }
 ```
 
 ## Usage
@@ -73,7 +73,7 @@ VTC uses an intuitive syntax for defining configurations:
 - Accessors use `->` followed by `(index)` or `(start..end)` for ranges
 - Intrinsic functions are called using `[function_name!!, arg1, arg2, ...]`
 
-For more detailed syntax information, refer to the [documentation](link_to_docs).
+[//]: # (For more detailed syntax information, refer to the [documentation]&#40;link_to_docs&#41;.)
 
 ## Performance
 
@@ -90,9 +90,10 @@ VTC is designed with performance in mind, making it suitable for both small-scal
 - **Type Safety**: Strong typing ensures configuration integrity.
 - **Extensibility**: Easily add custom intrinsic functions to suit your specific needs.
 
-## Contributing
+[//]: # (## Contributing)
 
-Contributions are welcome! Whether it's bug reports, feature requests, or code contributions, please feel free to engage with the project. Check out our [CONTRIBUTING.md](link_to_contributing) for guidelines.
+[//]: # ()
+[//]: # (Contributions are welcome! Whether it's bug reports, feature requests, or code contributions, please feel free to engage with the project. Check out our [CONTRIBUTING.md]&#40;link_to_contributing&#41; for guidelines.)
 
 ## License
 

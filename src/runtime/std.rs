@@ -1,5 +1,8 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Formatter;
 use std::rc::Rc;
+use anyhow::{anyhow, Result};
 
 use base64::{decode, encode};
 use sha2::{Digest, Sha256};
@@ -407,6 +410,13 @@ pub struct StdLibLoader {
 	loadable: HashMap<String, VtcFn>,
 }
 
+#[macro_export]
+macro_rules! register_function {
+    ($loader:expr, $name:expr, $func:expr) => {
+	    $loader.register_function($name.to_string(), Box::new($func) as VtcFn);
+    };
+}
+
 impl StdLibLoader {
 	pub fn new() -> Self {
 		let mut loadable = HashMap::new();
@@ -458,5 +468,20 @@ impl StdLibLoader {
 
 	pub fn get_function(&self, name: &str) -> Option<&VtcFn> {
 		self.loadable.get(name)
+	}
+
+	pub fn register_function(&mut self, name: String, function: VtcFn) -> Result<()> {
+		if name.starts_with("std") {
+			return Err(anyhow!("User defined functions cannot start with `std`.".to_string()))
+		}
+		self.loadable.insert(name, function);
+		Ok(())
+	}
+}
+
+impl fmt::Debug for StdLibLoader {
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		f.debug_struct("StdLibLoader").field("loadable", &self.loadable.keys().collect::<Vec<_>>())
+			.finish()
 	}
 }

@@ -2,30 +2,32 @@ use ::std::collections::{HashMap, HashSet};
 use ::std::fs;
 use ::std::path::PathBuf;
 use ::std::rc::Rc;
+
 use smallvec::SmallVec;
-use crate::parser::grammar::parse;
-use crate::parser::lexer::tokenize;
+
 use crate::parser::parse_vtc;
 use crate::runtime::error::RuntimeError;
 use crate::runtime::std::StdLibLoader;
-use crate::value::{Accessor, Number, Reference, ReferenceType, Value, VtcFile};
+use crate::value::{Accessor, Reference, ReferenceType, Value, VtcFile};
 
 pub mod runtime;
 pub mod error;
+pub mod std;
 mod memory;
-mod std;
 mod utils;
 
 /// A struct representing the runtime environment of a software program.
 #[derive(Debug)]
 pub struct Runtime {
 	namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
+	std_lib_loader: StdLibLoader
 }
 
 impl Runtime {
 	pub fn new() -> Self {
 		Runtime {
 			namespaces: HashMap::new(),
+			std_lib_loader: StdLibLoader::new(),
 		}
 	}
 
@@ -45,6 +47,11 @@ impl Runtime {
 	pub fn load_vtc(&mut self, input: &str) -> Result<(), RuntimeError> {
 		let vtc_file = parse_vtc(input)?;
 		self.load_vtc_file(vtc_file)
+	}
+
+	pub fn update_library_loader(&mut self, lib_loader: StdLibLoader) -> Result<(), RuntimeError> {
+		self.std_lib_loader = lib_loader;
+		Ok(())
 	}
 
 	// Parsing methods
@@ -160,8 +167,7 @@ impl Runtime {
 		match &*value {
 			Value::List(items) => {
 				if let Some(Value::Intrinsic(name)) = items.get(0).map(|v| &**v) {
-					let std_lib = StdLibLoader::new();
-					if let Some(func) = std_lib.get_function(name) {
+					if let Some(func) = self.std_lib_loader.get_function(name) {
 						let args = self.collect_intrinsic_args(items, visited)?;
 						Ok(func(args))
 					} else {

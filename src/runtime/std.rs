@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
 use std::rc::Rc;
-use anyhow::{anyhow, Result};
 
-use base64::{decode, encode};
+use anyhow::{anyhow, Result};
+use base64::{alphabet, Engine as _, engine::{self, general_purpose}};
 use sha2::{Digest, Sha256};
-use crate::value::Value;
+
 use crate::value::Number;
+use crate::value::Value;
 
 pub type VtcFn = Box<dyn Fn(Vec<Rc<Value>>) -> Rc<Value>>;
 
@@ -106,7 +107,6 @@ mod arithmetic {
 // Conversion operations
 mod conversion {
 	use crate::value::Number;
-	use super::*;
 
 	pub fn std_int_to_float(i: Number) -> Number {
 		match i {
@@ -126,7 +126,6 @@ mod conversion {
 // Comparison operations
 mod comparison {
 	use crate::value::Number;
-	use super::*;
 
 	pub fn std_eq(n1: Number, n2: Number) -> bool {
 		match (n1, n2) {
@@ -156,7 +155,6 @@ mod comparison {
 // Bitwise operations
 mod bitwise {
 	use crate::value::Number;
-	use super::*;
 
 	pub fn std_bitwise_and(i1: Number, i2: Number) -> Number {
 		match (i1, i2) {
@@ -190,6 +188,7 @@ mod bitwise {
 // String operations
 mod string_ops {
 	use crate::value::Value;
+
 	use super::*;
 
 	pub fn std_to_uppercase(args: Vec<Rc<Value>>) -> Rc<Value> {
@@ -249,15 +248,17 @@ mod string_ops {
 
 // Advanced operations
 mod advanced_ops {
-	use crate::value::Value;
 	use super::*;
+
+	const CUSTOM_ENGINE: engine::GeneralPurpose = engine::GeneralPurpose::new(
+		&alphabet::URL_SAFE, general_purpose::NO_PAD);
 
 	pub fn std_base64_encode(args: Vec<Rc<Value>>) -> Rc<Value> {
 		if args.len() != 1 {
 			panic!("std_base64_encode expects 1 argument");
 		}
 		let s = helpers::extract_string(&args[0]);
-		Rc::new(Value::String(Rc::new(encode(s))))
+		Rc::new(Value::String(Rc::new(CUSTOM_ENGINE.encode(s))))
 	}
 
 	pub fn std_base64_decode(args: Vec<Rc<Value>>) -> Rc<Value> {
@@ -265,7 +266,7 @@ mod advanced_ops {
 			panic!("std_base64_decode expects 1 argument");
 		}
 		let s = helpers::extract_string(&args[0]);
-		match decode(s) {
+		match CUSTOM_ENGINE.decode(s) {
 			Ok(decoded) => match String::from_utf8(decoded) {
 				Ok(decoded_str) => Rc::new(Value::String(Rc::new(decoded_str))),
 				Err(_) => panic!("Failed to convert decoded bytes to UTF-8 string"),

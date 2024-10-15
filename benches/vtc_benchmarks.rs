@@ -2,11 +2,11 @@ use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_ma
 use rand::{Rng, SeedableRng};
 use rand::distributions::Alphanumeric;
 
-use vtc::Accessor;
 // Update this line
 use vtc::parser::grammar::parse;
 use vtc::parser::lexer::tokenize;
-use vtc::runtime::runtime::Runtime;
+use vtc::runtime::Runtime;
+use vtc::value::Accessor;
 
 const SMALL_INPUT: &str = r#"
 @config:

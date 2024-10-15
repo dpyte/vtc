@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
 	use std::collections::HashMap;
-	use vtc::Number::Integer;
-	use vtc::runtime::runtime::Runtime;
-	use vtc::Value;
-	use vtc::Value::Number;
+	use std::rc::Rc;
+	use vtc::runtime::Runtime;
+	use vtc::value::Number::Integer;
+	use vtc::value::Value;
+	use vtc::value::Value::Number;
 
 	// Helper function to create a runtime with some predefined values
 	fn setup_runtime() -> Runtime {
@@ -33,8 +34,8 @@ mod tests {
 		let rt = setup_runtime();
 		let list = rt.as_dict("test_namespace", "complex_dict").unwrap();
 
-		let mut match_against: HashMap<String, Value> = HashMap::new();
-		match_against.insert(String::from(r#""Hello, World!""#), Number(Integer(24)));
+		let mut match_against: HashMap<String, Rc<Value>> = HashMap::new();
+		match_against.insert(String::from(r#""Hello, World!""#), Rc::new(Number(Integer(24))));
 		println!("{:?}", match_against);
 		assert_eq!(list, match_against);
 	}

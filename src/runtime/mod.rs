@@ -13,13 +13,14 @@ use crate::value::{Accessor, Reference, ReferenceType, Value, VtcFile};
 pub mod runtime;
 pub mod error;
 pub mod std;
+pub mod serialize;
 mod memory;
 mod utils;
 
 /// A struct representing the runtime environment of a software program.
 #[derive(Debug)]
 pub struct Runtime {
-	namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
+	pub namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
 	std_lib_loader: StdLibLoader
 }
 

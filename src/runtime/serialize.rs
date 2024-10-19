@@ -1,8 +1,10 @@
-use crate::value::{Number, Value};
-use std::fs::File;
+use std::collections::{HashMap, HashSet};
+use crate::value::{Number, Reference, Value};
+use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use std::rc::Rc;
 use crate::runtime::Runtime;
 use crate::value::{Accessor};
 
@@ -96,5 +98,105 @@ impl Runtime {
 			Value::Number(Number::Binary(b)) => format!("0b{:064b}", b),
 			Value::Number(Number::Hexadecimal(hx)) => format!("0x{:016X}", hx),
 		}
+	}
+
+	/// Serializes a `Value` for selective dumping, tracking dependencies.
+	fn serialize_value_selective(
+		&self,
+		value: &Value,
+		dumped_namespaces: &mut HashSet<Rc<String>>,
+		to_dump: &mut Vec<Rc<String>>,
+	) -> String {
+		match value {
+			Value::List(list) => {
+				let items: Vec<String> = list.iter()
+					.map(|item| self.serialize_value_selective(item, dumped_namespaces, to_dump))
+					.collect();
+				format!("[{}]", items.join(", "))
+			},
+			Value::Reference(ref_val) => self.serialize_reference_selective(ref_val, dumped_namespaces, to_dump),
+			_ => self.serialize_value(value)
+		}
+	}
+
+	fn serialize_reference_selective(
+		&self,
+		ref_val: &Reference,
+		dumped_namespaces: &mut HashSet<Rc<String>>,
+		to_dump: &mut Vec<Rc<String>>,
+	) -> String {
+		if let Some(ns) = &ref_val.namespace {
+			if !dumped_namespaces.contains(ns) {
+				to_dump.push(Rc::clone(ns));
+			}
+		}
+		self.serialize_value(&Value::Reference(ref_val.clone().into()))
+	}
+
+	pub fn dump_selective<P: AsRef<Path>>(&self, path: P, namespaces: Vec<String>) -> io::Result<()> {
+		let mut file = OpenOptions::new()
+			.write(true)
+			.truncate(true)
+			.create(true)
+			.open(path)?;
+
+		let mut dumped_namespaces = HashSet::new();
+		let mut to_dump = if namespaces.is_empty() {
+			self.namespaces.keys().cloned().collect::<Vec<_>>()
+		} else {
+			namespaces.into_iter().map(Rc::from).collect()
+		};
+
+		while let Some(namespace) = to_dump.pop() {
+			if dumped_namespaces.contains(&namespace) {
+				continue;
+			}
+			if let Some(variables) = self.namespaces.get(&namespace) {
+				self.dump_namespace(&mut file, &namespace, variables, &mut dumped_namespaces, &mut to_dump)?;
+			}
+		}
+		Ok(())
+	}
+
+	fn dump_namespace(
+		&self,
+		file: &mut File,
+		namespace: &Rc<String>,
+		variables: &HashMap<Rc<String>, Rc<Value>>,
+		dumped_namespaces: &mut HashSet<Rc<String>>,
+		to_dump: &mut Vec<Rc<String>>,
+	) -> io::Result<()> {
+		writeln!(file, "@{}:", namespace)?;
+
+		for (var_name, value) in variables {
+			let serialized = self.serialize_value_selective(value, dumped_namespaces, to_dump);
+			writeln!(file, "    ${} := {}", var_name, serialized)?;
+		}
+
+		writeln!(file)?;  // Add a blank line between namespaces
+		dumped_namespaces.insert(Rc::clone(namespace));
+
+		Ok(())
+	}
+
+	fn dump_namespace_selective(
+		&self,
+		file: &mut File,
+		namespace: &Rc<String>,
+		variables: &HashMap<Rc<String>, Rc<Value>>,
+		dumped_namespaces: &mut HashSet<Rc<String>>,
+		to_dump: &mut Vec<Rc<String>>,
+	) -> io::Result<()> {
+		file.write_all(format!("@{}:\n", namespace).as_bytes())?;
+
+		for (var_name, value) in variables {
+			let serialized = self.serialize_value_selective(value, dumped_namespaces, to_dump);
+			file.write_all(format!("    ${} := {}\n", var_name, serialized).as_bytes())?;
+		}
+
+		file.write_all(b"\n")?;  // Add a blank line between namespaces
+		dumped_namespaces.insert(Rc::clone(namespace));
+
+		Ok(())
 	}
 }

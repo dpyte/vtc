@@ -1,7 +1,14 @@
 [package]
 name = "vtc"
-version = "0.1.0"
+version = "0.1.1"
+authors = ["Dhruv Patel"]
 edition = "2021"
+description = "A VTC (Virtual Typed Configuration) parser and runtime"
+license = "MIT"
+repository = "https://github.com/dpyte/vtc"
+readme = "README.md"
+keywords = ["configuration", "parser", "runtime"]
+categories = ["parsing", "config"]
 
 [lib]
 name = "vtc"
@@ -29,6 +36,10 @@ insta = "1.26"
 [[bench]]
 name = "vtc_benchmarks"
 harness = false
+
+[profile.dev]
+opt-level = 1
+debug = true
 
 [profile.release]
 lto = true

@@ -227,6 +227,7 @@ mod string_ops {
 		}
 	}
 
+	/// Appends two or more strings together
 	pub fn std_concat(args: Vec<Rc<Value>>) -> Rc<Value> {
 		let mut result = String::new();
 		for arg in args {

@@ -1,6 +1,6 @@
 use fmt::Display;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 /// Represents all possible runtime errors.
 #[derive(Debug)]
@@ -10,15 +10,16 @@ pub enum RuntimeError {
 	InvalidAccessor(String),
 	InvalidRange(usize, usize),
 	MissingNamespace,
-	NamespaceNotFound(String),
 	NoNamespaces,
 	ParseError(String),
-	VariableNotFound(String),
 	FileReadError(String),
 	TypeError(String),
 	UnknownIntrinsic(String),
 	InvalidIntrinsicArgs,
 	ConversionError(String),
+	NamespaceNotFound(String),
+	VariableNotFound(String),
+	NamespaceAlreadyExists(String),
 }
 
 impl Display for RuntimeError {
@@ -36,8 +37,9 @@ impl Display for RuntimeError {
 			RuntimeError::TypeError(msg) => write!(f, "Type error: {}", msg),
 			RuntimeError::ConversionError(msg) => write!(f, "Conversion error: {}", msg),
 			RuntimeError::UnknownIntrinsic(name) => write!(f, "Unknown intrinsic: {}", name),
-			RuntimeError::NoNamespaces => {write!(f, "Namespace not found")},
-			RuntimeError::InvalidIntrinsicArgs => {write!(f, "Invalid amount of intrinsic args")}
+			RuntimeError::NoNamespaces => write!(f, "No namespaces found"),
+			RuntimeError::InvalidIntrinsicArgs => write!(f, "Invalid number of intrinsic arguments"),
+			RuntimeError::NamespaceAlreadyExists(name) => write!(f, "Namespace already exists: {}", name),
 		}
 	}
 }

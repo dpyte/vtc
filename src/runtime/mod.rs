@@ -20,7 +20,7 @@ mod utils;
 /// A struct representing the runtime environment of a software program.
 #[derive(Debug)]
 pub struct Runtime {
-	pub namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
+	namespaces: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Value>>>,
 	std_lib_loader: StdLibLoader
 }
 
@@ -79,6 +79,70 @@ impl Runtime {
 		self.resolve_reference(&reference)
 	}
 
+	pub fn add_value(&mut self, namespace: &str, key: &str, value: Value) -> Result<(), RuntimeError> {
+		let namespace = Rc::new(namespace.to_string());
+		let key = Rc::new(key.to_string());
+
+		self.namespaces
+			.entry(namespace)
+			.or_insert_with(HashMap::new)
+			.insert(key, Rc::new(value));
+
+		Ok(())
+	}
+
+	pub fn update_value(&mut self, namespace: &str, key: &str, value: Value) -> Result<(), RuntimeError> {
+		let namespace = Rc::new(namespace.to_string());
+		let key = Rc::new(key.to_string());
+
+		if let Some(ns) = self.namespaces.get_mut(&namespace) {
+			if ns.contains_key(&key) {
+				ns.insert(key, Rc::new(value));
+				Ok(())
+			} else {
+				Err(RuntimeError::VariableNotFound(key.to_string()))
+			}
+		} else {
+			Err(RuntimeError::NamespaceNotFound(namespace.to_string()))
+		}
+	}
+
+	pub fn delete_value(&mut self, namespace: &str, key: &str) -> Result<(), RuntimeError> {
+		let namespace = Rc::new(namespace.to_string());
+		let key = Rc::new(key.to_string());
+
+		if let Some(ns) = self.namespaces.get_mut(&namespace) {
+			if ns.remove(&key).is_some() {
+				Ok(())
+			} else {
+				Err(RuntimeError::VariableNotFound(key.to_string()))
+			}
+		} else {
+			Err(RuntimeError::NamespaceNotFound(namespace.to_string()))
+		}
+	}
+
+	pub fn add_namespace(&mut self, namespace: &str) -> Result<(), RuntimeError> {
+		let namespace = Rc::new(namespace.to_string());
+
+		if !self.namespaces.contains_key(&namespace) {
+			self.namespaces.insert(namespace, HashMap::new());
+			Ok(())
+		} else {
+			Err(RuntimeError::NamespaceAlreadyExists(namespace.to_string()))
+		}
+	}
+
+	pub fn delete_namespace(&mut self, namespace: &str) -> Result<(), RuntimeError> {
+		let namespace = Rc::new(namespace.to_string());
+
+		if self.namespaces.remove(&namespace).is_some() {
+			Ok(())
+		} else {
+			Err(RuntimeError::NamespaceNotFound(namespace.to_string()))
+		}
+	}
+
 	// Helper method for type-specific value retrieval
 	fn get_typed_value<T, F>(&self, namespace: &str, variable: &str, f: F) -> Result<T, RuntimeError>
 	where
@@ -120,7 +184,6 @@ impl Runtime {
 
 		let variables = self.namespaces.get(namespace)
 			.ok_or_else(|| RuntimeError::NamespaceNotFound((**namespace).clone()))?;
-
 		let mut value = variables.get(&reference.variable)
 			.ok_or_else(|| RuntimeError::VariableNotFound((**reference.variable).parse().unwrap()))?
 			.clone();
@@ -131,7 +194,6 @@ impl Runtime {
 		for accessor in &reference.accessors {
 			value = self.apply_accessor(value, accessor)?;
 		}
-
 		visited.remove(&key);
 		Ok(value)
 	}

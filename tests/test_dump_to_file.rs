@@ -241,4 +241,18 @@ mod tests {
 
 		teardown(&output_path);
 	}
+
+	#[test]
+	fn test_serialize_boolean() {
+		let runtime = Runtime::new();
+		assert_eq!(runtime.serialize_value(&Value::Boolean(true)), "True");
+		assert_eq!(runtime.serialize_value(&Value::Boolean(false)), "False");
+	}
+
+	#[test]
+	fn test_serialize_string_with_quotes() {
+		let runtime = Runtime::new();
+		assert_eq!(runtime.serialize_value(&Value::String(Rc::new("hello".to_string()))), "\"hello\"");
+		assert_eq!(runtime.serialize_value(&Value::String(Rc::new("hello \"world\"".to_string()))), "'hello \"world\"'");
+	}
 }

@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
-use crate::value::{Number, Reference, Value};
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::rc::Rc;
+
 use crate::runtime::Runtime;
-use crate::value::{Accessor};
+use crate::value::{Number, Reference, Value};
+use crate::value::Accessor;
 
 impl Runtime {
 	/// Dumps the entire runtime state to a file in VTC format.
@@ -68,12 +69,18 @@ impl Runtime {
 	/// let serialized = runtime.serialize_value(&value);
 	/// assert_eq!(serialized, "42");
 	/// ```
-	fn serialize_value(&self, value: &Value) -> String {
+	pub fn serialize_value(&self, value: &Value) -> String {
 		match value {
-			Value::String(s) => format!("\"{}\"", s),
+			Value::String(s) => {
+				if s.to_string().contains('"') {
+					format!("{}", s)
+				} else {
+					format!("\"{}\"", s)
+				}
+			},
 			Value::Number(Number::Integer(i)) => i.to_string(),
 			Value::Number(Number::Float(f)) => f.to_string(),
-			Value::Boolean(b) => b.to_string(),
+			Value::Boolean(b) =>  if *b { "True".to_string() } else { "False".to_string() },
 			Value::List(list) => {
 				let items: Vec<String> = list.iter()
 					.map(|item| self.serialize_value(item))

@@ -1,9 +1,11 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use smallvec::SmallVec;
 
 use crate::parser::lexer::Token;
 use crate::value::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
+
+const SMALL_VEC_SIZE: usize = 4;
 
 pub struct Parser<'a> {
 	tokens: &'a [Token],
@@ -21,7 +23,7 @@ impl<'a> Parser<'a> {
 	pub fn parse(&mut self) -> Result<VtcFile, String> {
 		let mut namespaces = Vec::new();
 		while self.position < self.tokens.len() {
-			namespaces.push(Rc::new(self.parse_namespace()?));
+			namespaces.push(self.parse_namespace()?);
 		}
 		Ok(VtcFile { namespaces })
 	}
@@ -29,17 +31,16 @@ impl<'a> Parser<'a> {
 	fn parse_namespace(&mut self) -> Result<Namespace, String> {
 		self.expect_token(|t| matches!(t, Token::Namespace(_)))?;
 		let name = match &self.tokens[self.position - 1] {
-			Token::Namespace(n) => Rc::new(n.clone()),
+			Token::Namespace(n) => n.clone(),
 			_ => unreachable!(),
 		};
 		self.expect_token(|t| *t == Token::Colon)?;
 
 		let mut variables = Vec::new();
-		while self
-			.peek_token()
+		while self.peek_token()
 			.map_or(false, |t| matches!(t, Token::Variable(_)))
 		{
-			variables.push(Rc::new(self.parse_variable()?));
+			variables.push(self.parse_variable()?);
 		}
 
 		Ok(Namespace { name, variables })
@@ -48,11 +49,11 @@ impl<'a> Parser<'a> {
 	fn parse_variable(&mut self) -> Result<Variable, String> {
 		self.expect_token(|t| matches!(t, Token::Variable(_)))?;
 		let name = match &self.tokens[self.position - 1] {
-			Token::Variable(n) => Rc::new(n.clone()),
+			Token::Variable(n) => n.clone(),
 			_ => unreachable!(),
 		};
 		self.expect_token(|t| *t == Token::Assign)?;
-		let value = Rc::new(self.parse_value()?);
+		let value = self.parse_value()?;
 		Ok(Variable { name, value })
 	}
 
@@ -60,15 +61,15 @@ impl<'a> Parser<'a> {
 		match self.next_token() {
 			Some(token) => match token {
 				Token::OpenBracket => self.parse_list(),
-				Token::Intrinsic(i) => Ok(Value::Intrinsic(Rc::new(i.clone()))),
-				Token::String(s) => Ok(Value::String(Rc::new(s.clone()))),
+				Token::Intrinsic(i) => Ok(Value::Intrinsic(i.clone())),
+				Token::String(s) => Ok(Value::String(s.clone())),
 				Token::Integer(i) => Ok(Value::Number(Number::Integer(*i))),
 				Token::Float(f) => Ok(Value::Number(Number::Float(*f))),
 				Token::Binary(b) => Ok(Value::Number(Number::Binary(*b))),
 				Token::Hexadecimal(h) => Ok(Value::Number(Number::Hexadecimal(*h))),
 				Token::Boolean(b) => Ok(Value::Boolean(*b)),
 				Token::Nil => Ok(Value::Nil),
-				Token::Reference(_) => self.parse_reference().map(|r| Value::Reference(Rc::new(r))),
+				Token::Reference(_) => self.parse_reference(),
 				_ => Err(format!("Unexpected token when parsing value: {:?}", token)),
 			},
 			None => Err("Unexpected end of input when parsing value".to_string()),
@@ -83,8 +84,7 @@ impl<'a> Parser<'a> {
 				break;
 			}
 
-			let val = Rc::new(self.parse_value()?);
-			values.push(val);
+			values.push(self.parse_value()?);
 			match self.peek_token() {
 				Some(&Token::Comma) => {
 					self.next_token();
@@ -93,10 +93,10 @@ impl<'a> Parser<'a> {
 				_ => return Err("Expected ',' or ']'".to_string()),
 			}
 		}
-		Ok(Value::List(Rc::new(values)))
+		Ok(Value::List(Arc::new(values)))  // Only Arc the Vec itself
 	}
 
-	fn parse_reference(&mut self) -> Result<Reference, String> {
+	fn parse_reference(&mut self) -> Result<Value, String> {
 		let reference_token = match &self.tokens[self.position - 1] {
 			Token::Reference(r) => r,
 			_ => return Err("Expected reference".to_string()),
@@ -112,8 +112,8 @@ impl<'a> Parser<'a> {
 
 		let parts: Vec<&str> = rest.split('.').collect();
 		let (namespace, variable) = match parts.len() {
-			1 => (None, Rc::new(parts[0].to_string())),
-			2 => (Some(Rc::new(parts[0].to_string())), Rc::new(parts[1].to_string())),
+			1 => (None, Arc::new(parts[0].to_string())),
+			2 => (Some(Arc::new(parts[0].to_string())), Arc::new(parts[1].to_string())),
 			_ => return Err("Invalid reference format".to_string()),
 		};
 
@@ -123,12 +123,12 @@ impl<'a> Parser<'a> {
 			accessors.push(self.parse_accessor()?);
 		}
 
-		Ok(Reference {
+		Ok(Value::Reference(Reference {
 			ref_type,
 			namespace,
 			variable,
 			accessors,
-		})
+		}))
 	}
 
 	fn parse_accessor(&mut self) -> Result<Accessor, String> {
@@ -161,7 +161,7 @@ impl<'a> Parser<'a> {
 	fn parse_key(&mut self) -> Result<Accessor, String> {
 		let key = self.expect_token(|t| matches!(t, Token::String(_) | Token::Identifier(_)))?;
 		self.expect_token(|t| *t == Token::CloseBracket)?;
-		Ok(Accessor::Key(Rc::new(key)))
+		Ok(Accessor::Key(key))
 	}
 
 	fn next_token(&mut self) -> Option<&Token> {
@@ -212,4 +212,29 @@ impl<'a> Parser<'a> {
 pub fn parse(tokens: &[Token]) -> Result<VtcFile, String> {
 	let mut parser = Parser::new(tokens);
 	parser.parse()
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::parser::lexer::tokenize;
+
+	use super::*;
+
+	#[test]
+	fn test_parse_simple_namespace() {
+		let input = "@test: $var := [1, 2, 3]";
+		let (_, tokens) = tokenize(input).unwrap();
+		let result = parse(&tokens).unwrap();
+		assert_eq!(result.namespaces.len(), 1);
+		assert_eq!(result.namespaces[0].name, "test");
+	}
+
+	#[test]
+	fn test_parse_reference() {
+		let input = "@test: $var := %other.value->(0)";
+		let (_, tokens) = tokenize(input).unwrap();
+		let result = parse(&tokens).unwrap();
+		assert_eq!(result.namespaces.len(), 1);
+		// Add more specific assertions
+	}
 }

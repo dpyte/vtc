@@ -139,8 +139,8 @@ fn custom_multiply_by_two(args: Vec<Rc<Value>>) -> Rc<Value> {
 	}
 
 	match &*args[0] {
-		Value::Number(Number::Integer(i)) => Rc::new(Value::Number(Number::Integer(i * 2))),
-		Value::Number(Number::Float(f)) => Rc::new(Value::Number(Number::Float(f * 2.0))),
+		Value::Number(Number::Integer(i)) => Arc::new(Value::Number(Number::Integer(i * 2))),
+		Value::Number(Number::Float(f)) => Arc::new(Value::Number(Number::Float(f * 2.0))),
 		_ => panic!("custom_multiply_by_two expects a number"),
 	}
 }

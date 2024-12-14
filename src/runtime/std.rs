@@ -1,31 +1,31 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use base64::{alphabet, Engine as _, engine::{self, general_purpose}};
+use fnv::FnvHashMap;
 use sha2::{Digest, Sha256};
 
 use crate::value::Number;
 use crate::value::Value;
 
-pub type VtcFn = Box<dyn Fn(Vec<Rc<Value>>) -> Rc<Value>>;
+pub type VtcFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
 
 // Helper functions
 mod helpers {
 	use super::*;
 
-	pub fn extract_number(value: &Rc<Value>) -> Number {
+	pub fn extract_number(value: &Arc<Value>) -> Number {
 		match &**value {
 			Value::Number(n) => n.clone(),
 			_ => panic!("Expected a Number value"),
 		}
 	}
 
-	pub fn extract_string(value: &Rc<Value>) -> String {
+	pub fn extract_string(value: &Arc<Value>) -> String {
 		match &**value {
-			Value::String(s) => (**s).clone(),
+			Value::String(s) => (**s).to_string(),
 			_ => panic!("Expected a String value"),
 		}
 	}
@@ -191,23 +191,23 @@ mod string_ops {
 
 	use super::*;
 
-	pub fn std_to_uppercase(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_to_uppercase(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 1 {
 			panic!("std_to_uppercase expects 1 argument");
 		}
 		let s = helpers::extract_string(&args[0]);
-		Rc::new(Value::String(Rc::new(s.to_uppercase())))
+		Arc::new(Value::String(s.to_uppercase()))
 	}
 
-	pub fn std_to_lowercase(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_to_lowercase(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 1 {
 			panic!("std_to_lowercase expects 1 argument");
 		}
 		let s = helpers::extract_string(&args[0]);
-		Rc::new(Value::String(Rc::new(s.to_lowercase())))
+		Arc::new(Value::String(s.to_lowercase()))
 	}
 
-	pub fn std_substring(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_substring(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 3 {
 			panic!("std_substring expects 3 arguments");
 		}
@@ -221,29 +221,29 @@ mod string_ops {
 			if start > end || end > s.len() {
 				panic!("Invalid range for substring");
 			}
-			Rc::new(Value::String(Rc::new(s[start..end].to_string())))
+			Arc::new(Value::String(s[start..end].to_string()))
 		} else {
 			panic!("Start and end indices must be integers");
 		}
 	}
 
 	/// Appends two or more strings together
-	pub fn std_concat(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_concat(args: Vec<Arc<Value>>) -> Arc<Value> {
 		let mut result = String::new();
 		for arg in args {
 			result.push_str(&helpers::extract_string(&arg));
 		}
-		Rc::new(Value::String(Rc::new(result)))
+		Arc::new(Value::String(result))
 	}
 
-	pub fn std_replace(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_replace(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 3 {
 			panic!("std_replace expects 3 arguments");
 		}
 		let s = helpers::extract_string(&args[0]);
 		let from = helpers::extract_string(&args[1]);
 		let to = helpers::extract_string(&args[2]);
-		Rc::new(Value::String(Rc::new(s.replace(&from, &to))))
+		Arc::new(Value::String(s.replace(&from, &to)))
 	}
 }
 
@@ -254,29 +254,29 @@ mod advanced_ops {
 	const CUSTOM_ENGINE: engine::GeneralPurpose = engine::GeneralPurpose::new(
 		&alphabet::URL_SAFE, general_purpose::NO_PAD);
 
-	pub fn std_base64_encode(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_base64_encode(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 1 {
 			panic!("std_base64_encode expects 1 argument");
 		}
 		let s = helpers::extract_string(&args[0]);
-		Rc::new(Value::String(Rc::new(CUSTOM_ENGINE.encode(s))))
+		Arc::new(Value::String(CUSTOM_ENGINE.encode(s)))
 	}
 
-	pub fn std_base64_decode(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_base64_decode(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 1 {
 			panic!("std_base64_decode expects 1 argument");
 		}
 		let s = helpers::extract_string(&args[0]);
 		match CUSTOM_ENGINE.decode(s) {
 			Ok(decoded) => match String::from_utf8(decoded) {
-				Ok(decoded_str) => Rc::new(Value::String(Rc::new(decoded_str))),
+				Ok(decoded_str) => Arc::new(Value::String(decoded_str)),
 				Err(_) => panic!("Failed to convert decoded bytes to UTF-8 string"),
 			},
 			Err(_) => panic!("Failed to decode base64 string"),
 		}
 	}
 
-	pub fn std_hash(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_hash(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 2 {
 			panic!("std_hash expects 2 arguments");
 		}
@@ -287,7 +287,7 @@ mod advanced_ops {
 				let mut hasher = Sha256::new();
 				hasher.update(s.as_bytes());
 				let result = hasher.finalize();
-				Rc::new(Value::String(Rc::new(format!("{:x}", result))))
+				Arc::new(Value::String(format!("{:x}", result)))
 			},
 			_ => panic!("Unsupported hash algorithm: {}", algorithm),
 		}
@@ -298,42 +298,42 @@ mod advanced_ops {
 mod control_flow {
 	use super::*;
 
-	pub fn std_if(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_if(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 3 {
 			panic!("std_if expects 3 arguments: condition, true_value, false_value");
 		}
 		match &*args[0] {
 			Value::Boolean(condition) => {
 				if *condition {
-					Rc::clone(&args[1])
+					args[1].clone()
 				} else {
-					Rc::clone(&args[2])
+					args[2].clone()
 				}
 			},
 			_ => panic!("First argument of std_if must be a boolean"),
 		}
 	}
 
-	pub fn std_try(args: Vec<Rc<Value>>) -> Rc<Value> {
+	pub fn std_try(args: Vec<Arc<Value>>) -> Arc<Value> {
 		if args.len() != 2 {
 			panic!("std_try expects 2 arguments: expression, default_value");
 		}
 		// In a real implementation, you'd want to actually try evaluating the first argument
 		// and return the second if it fails. For now, we'll just return the first argument.
-		Rc::clone(&args[0])
+		args[0].clone()
 	}
 }
 
 // Wrapper functions for arithmetic operations
 macro_rules! create_arithmetic_wrapper {
     ($name:ident, $func:path) => {
-        fn $name(args: Vec<Rc<Value>>) -> Rc<Value> {
+        fn $name(args: Vec<Arc<Value>>) -> Arc<Value> {
             if args.len() != 2 {
                 panic!(concat!(stringify!($name), " expects 2 arguments"));
             }
             let n1 = helpers::extract_number(&args[0]);
             let n2 = helpers::extract_number(&args[1]);
-            Rc::new(Value::Number($func(n1, n2)))
+            Arc::new(Value::Number($func(n1, n2)))
         }
     };
 }
@@ -349,48 +349,48 @@ create_arithmetic_wrapper!(std_mul_float_wrapper, arithmetic::std_mul_float);
 create_arithmetic_wrapper!(std_div_float_wrapper, arithmetic::std_div_float);
 
 // Wrapper functions for conversion operations
-fn std_int_to_float_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+fn std_int_to_float_wrapper(args: Vec<Arc<Value>>) -> Arc<Value> {
 	if args.len() != 1 {
 		panic!("std_int_to_float expects 1 argument");
 	}
 	let n = helpers::extract_number(&args[0]);
-	Rc::new(Value::Number(conversion::std_int_to_float(n)))
+	Arc::new(Value::Number(conversion::std_int_to_float(n)))
 }
 
-fn std_float_to_int_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+fn std_float_to_int_wrapper(args: Vec<Arc<Value>>) -> Arc<Value> {
 	if args.len() != 1 {
 		panic!("std_float_to_int expects 1 argument");
 	}
 	let n = helpers::extract_number(&args[0]);
-	Rc::new(Value::Number(conversion::std_float_to_int(n)))
+	Arc::new(Value::Number(conversion::std_float_to_int(n)))
 }
 
 // Wrapper functions for comparison operations
-fn std_eq_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+fn std_eq_wrapper(args: Vec<Arc<Value>>) -> Arc<Value> {
 	if args.len() != 2 {
 		panic!("std_eq expects 2 arguments");
 	}
 	let n1 = helpers::extract_number(&args[0]);
 	let n2 = helpers::extract_number(&args[1]);
-	Rc::new(Value::Boolean(comparison::std_eq(n1, n2)))
+	Arc::new(Value::Boolean(comparison::std_eq(n1, n2)))
 }
 
-fn std_lt_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+fn std_lt_wrapper(args: Vec<Arc<Value>>) -> Arc<Value> {
 	if args.len() != 2 {
 		panic!("std_lt expects 2 arguments");
 	}
 	let n1 = helpers::extract_number(&args[0]);
 	let n2 = helpers::extract_number(&args[1]);
-	Rc::new(Value::Boolean(comparison::std_lt(n1, n2)))
+	Arc::new(Value::Boolean(comparison::std_lt(n1, n2)))
 }
 
-fn std_gt_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+fn std_gt_wrapper(args: Vec<Arc<Value>>) -> Arc<Value> {
 	if args.len() != 2 {
 		panic!("std_gt expects 2 arguments");
 	}
 	let n1 = helpers::extract_number(&args[0]);
 	let n2 = helpers::extract_number(&args[1]);
-	Rc::new(Value::Boolean(comparison::std_gt(n1, n2)))
+	Arc::new(Value::Boolean(comparison::std_gt(n1, n2)))
 }
 
 // Wrapper functions for bitwise operations
@@ -398,18 +398,18 @@ create_arithmetic_wrapper!(std_bitwise_and_wrapper, bitwise::std_bitwise_and);
 create_arithmetic_wrapper!(std_bitwise_or_wrapper, bitwise::std_bitwise_or);
 create_arithmetic_wrapper!(std_bitwise_xor_wrapper, bitwise::std_bitwise_xor);
 
-fn std_bitwise_not_wrapper(args: Vec<Rc<Value>>) -> Rc<Value> {
+fn std_bitwise_not_wrapper(args: Vec<Arc<Value>>) -> Arc<Value> {
 	if args.len() != 1 {
 		panic!("std_bitwise_not expects 1 argument");
 	}
 	let n = helpers::extract_number(&args[0]);
-	Rc::new(Value::Number(bitwise::std_bitwise_not(n)))
+	Arc::new(Value::Number(bitwise::std_bitwise_not(n)))
 }
 
 /// StdLibLoader
 /// Load and manage standard library functions
 pub struct StdLibLoader {
-	loadable: HashMap<String, VtcFn>,
+	loadable: FnvHashMap<String, VtcFn>,
 }
 
 #[macro_export]
@@ -421,7 +421,7 @@ macro_rules! register_function {
 
 impl StdLibLoader {
 	pub fn new() -> Self {
-		let mut loadable = HashMap::new();
+		let mut loadable = FnvHashMap::default();
 
 		// Arithmetic operations
 		loadable.insert("std_add_int".to_string(), Box::new(std_add_int_wrapper) as VtcFn);

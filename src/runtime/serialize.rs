@@ -1,157 +1,47 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+use std::fmt::Write as FmtWrite;
 use std::fs::{File, OpenOptions};
-use std::io;
-use std::io::Write;
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
+
+use fnv::FnvHashMap;
 
 use crate::runtime::Runtime;
-use crate::value::{Number, Reference, Value};
-use crate::value::Accessor;
+use crate::value::{Accessor, Number, Reference, ReferenceType, Value};
+
+const INITIAL_BUFFER_SIZE: usize = 4096;
 
 impl Runtime {
-	/// Dumps the entire runtime state to a file in VTC format.
-	///
-	/// This function writes all namespaces and their variables to the specified file,
-	/// maintaining the VTC syntax structure.
-	///
-	/// # Arguments
-	///
-	/// * `path` - A path-like object representing the file to write to.
-	///
-	/// # Returns
-	///
-	/// A `Result` which is:
-	/// - `Ok(())` if the write operation was successful.
-	/// - `Err(e)` if there was an error writing to the file, where `e` is the I/O error.
-	///
-	/// # Examples
-	///
-	/// ```
-	/// use vtc::runtime::Runtime;
-	///
-	/// let runtime = Runtime::new();
-	/// // ... populate the runtime ...
-	/// runtime.dump_to_file("output.vtc").expect("Failed to dump runtime");
-	/// ```
 	pub fn dump_to_file<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
-		let mut file = File::create(path)?;
-
-		for (namespace, variables) in &self.namespaces {
-			file.write_all(format!("@{}:\n", namespace).as_bytes())?;
-			for (var_name, value) in variables {
-				file.write_all(format!("    ${} := {}\n", var_name, self.serialize_value(value)).as_bytes())?;
-			}
-			file.write_all(b"\n")?;  // Add a blank line between namespaces
+		if let Some(parent) = path.as_ref().parent() {
+			std::fs::create_dir_all(parent)?;
 		}
 
+		let file = File::create(path)?;
+		let mut writer = BufWriter::with_capacity(INITIAL_BUFFER_SIZE, file);
+
+		for (namespace, variables) in &self.namespaces {
+			self.write_namespace(&mut writer, namespace, variables)?;
+		}
+
+		writer.flush()?;
 		Ok(())
 	}
 
-	/// Serializes a `Value` into its string representation in VTC syntax.
-	///
-	/// This function converts different types of `Value` into their corresponding
-	/// string representation according to the VTC syntax rules.
-	///
-	/// # Arguments
-	///
-	/// * `value` - A reference to the `Value` to be serialized.
-	///
-	/// # Returns
-	///
-	/// A `String` representing the serialized form of the `Value`.
-	///
-	/// # Examples
-	///
-	/// ```
-	/// use vtc::value::{Number, Value};
-	/// let value = Value::Number(Number::Integer(42));
-	/// let serialized = runtime.serialize_value(&value);
-	/// assert_eq!(serialized, "42");
-	/// ```
-	pub fn serialize_value(&self, value: &Value) -> String {
-		match value {
-			Value::String(s) => {
-				if s.to_string().contains('"') {
-					format!("{}", s)
-				} else {
-					format!("\"{}\"", s)
-				}
-			},
-			Value::Number(Number::Integer(i)) => i.to_string(),
-			Value::Number(Number::Float(f)) => f.to_string(),
-			Value::Boolean(b) =>  if *b { "True".to_string() } else { "False".to_string() },
-			Value::List(list) => {
-				let items: Vec<String> = list.iter()
-					.map(|item| self.serialize_value(item))
-					.collect();
-				format!("[{}]", items.join(", "))
-			},
-			Value::Reference(ref_val) => {
-				let namespace = ref_val.namespace.as_ref()
-					.map(|ns| format!("{}.", ns))
-					.unwrap_or_default();
-				let accessors = ref_val.accessors.iter()
-					.map(|acc| match acc {
-						Accessor::Index(i) => format!("->({})", i),
-						Accessor::Range(start, end) => format!("->({}, {})", start, end),
-						Accessor::Key(key) => format!("->[{}]", key),
-					})
-					.collect::<String>();
-				format!("%{}{}{}", namespace, ref_val.variable, accessors)
-			},
-			Value::Intrinsic(name) => format!("{}!!", name),
-			Value::Nil => "Nil".to_string(),
-			Value::Number(Number::Binary(b)) => format!("0b{:064b}", b),
-			Value::Number(Number::Hexadecimal(hx)) => format!("0x{:016X}", hx),
-		}
-	}
-
-	/// Serializes a `Value` for selective dumping, tracking dependencies.
-	fn serialize_value_selective(
-		&self,
-		value: &Value,
-		dumped_namespaces: &mut HashSet<Rc<String>>,
-		to_dump: &mut Vec<Rc<String>>,
-	) -> String {
-		match value {
-			Value::List(list) => {
-				let items: Vec<String> = list.iter()
-					.map(|item| self.serialize_value_selective(item, dumped_namespaces, to_dump))
-					.collect();
-				format!("[{}]", items.join(", "))
-			},
-			Value::Reference(ref_val) => self.serialize_reference_selective(ref_val, dumped_namespaces, to_dump),
-			_ => self.serialize_value(value)
-		}
-	}
-
-	fn serialize_reference_selective(
-		&self,
-		ref_val: &Reference,
-		dumped_namespaces: &mut HashSet<Rc<String>>,
-		to_dump: &mut Vec<Rc<String>>,
-	) -> String {
-		if let Some(ns) = &ref_val.namespace {
-			if !dumped_namespaces.contains(ns) {
-				to_dump.push(Rc::clone(ns));
-			}
-		}
-		self.serialize_value(&Value::Reference(ref_val.clone().into()))
-	}
-
 	pub fn dump_selective<P: AsRef<Path>>(&self, path: P, namespaces: Vec<String>) -> io::Result<()> {
-		let mut file = OpenOptions::new()
+		let file = OpenOptions::new()
 			.write(true)
 			.truncate(true)
 			.create(true)
 			.open(path)?;
+		let mut writer = BufWriter::with_capacity(INITIAL_BUFFER_SIZE, file);
 
-		let mut dumped_namespaces = HashSet::new();
+		let mut dumped_namespaces = HashSet::with_capacity(self.namespaces.len());
 		let mut to_dump = if namespaces.is_empty() {
 			self.namespaces.keys().cloned().collect::<Vec<_>>()
 		} else {
-			namespaces.into_iter().map(Rc::from).collect()
+			namespaces.into_iter().map(Arc::from).collect()
 		};
 
 		while let Some(namespace) = to_dump.pop() {
@@ -159,51 +49,163 @@ impl Runtime {
 				continue;
 			}
 			if let Some(variables) = self.namespaces.get(&namespace) {
-				self.dump_namespace(&mut file, &namespace, variables, &mut dumped_namespaces, &mut to_dump)?;
+				self.write_namespace_selective(
+					&mut writer,
+					&namespace,
+					variables,
+					&mut dumped_namespaces,
+					&mut to_dump,
+				)?;
 			}
 		}
+
+		writer.flush()?;
 		Ok(())
 	}
 
-	fn dump_namespace(
+	fn write_namespace(
 		&self,
-		file: &mut File,
-		namespace: &Rc<String>,
-		variables: &HashMap<Rc<String>, Rc<Value>>,
-		dumped_namespaces: &mut HashSet<Rc<String>>,
-		to_dump: &mut Vec<Rc<String>>,
+		writer: &mut BufWriter<File>,
+		namespace: &Arc<String>,
+		variables: &FnvHashMap<Arc<String>, Arc<Value>>
 	) -> io::Result<()> {
-		writeln!(file, "@{}:", namespace)?;
+		writeln!(writer, "@{}:", namespace)?;
 
 		for (var_name, value) in variables {
-			let serialized = self.serialize_value_selective(value, dumped_namespaces, to_dump);
-			writeln!(file, "    ${} := {}", var_name, serialized)?;
+			writeln!(writer, "\t${} := {}", var_name, self.serialize_value(value))?;
 		}
 
-		writeln!(file)?;  // Add a blank line between namespaces
-		dumped_namespaces.insert(Rc::clone(namespace));
-
+		writeln!(writer)?;
 		Ok(())
 	}
 
-	fn dump_namespace_selective(
+	fn write_namespace_selective(
 		&self,
-		file: &mut File,
-		namespace: &Rc<String>,
-		variables: &HashMap<Rc<String>, Rc<Value>>,
-		dumped_namespaces: &mut HashSet<Rc<String>>,
-		to_dump: &mut Vec<Rc<String>>,
+		writer: &mut BufWriter<File>,
+		namespace: &Arc<String>,
+		variables: &FnvHashMap<Arc<String>, Arc<Value>>,
+		dumped_namespaces: &mut HashSet<Arc<String>>,
+		to_dump: &mut Vec<Arc<String>>,
 	) -> io::Result<()> {
-		file.write_all(format!("@{}:\n", namespace).as_bytes())?;
+		writeln!(writer, "@{}:", namespace)?;
 
-		for (var_name, value) in variables {
+		let mut vars: Vec<_> = variables.iter().collect();
+		vars.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+
+		for (var_name, value) in vars {
 			let serialized = self.serialize_value_selective(value, dumped_namespaces, to_dump);
-			file.write_all(format!("    ${} := {}\n", var_name, serialized).as_bytes())?;
+			writeln!(writer, "\t${} := {}", var_name, serialized)?;
 		}
 
-		file.write_all(b"\n")?;  // Add a blank line between namespaces
-		dumped_namespaces.insert(Rc::clone(namespace));
-
+		writeln!(writer)?;
+		dumped_namespaces.insert(Arc::clone(namespace));
 		Ok(())
+	}
+
+	pub fn serialize_value(&self, value: &Value) -> String {
+		let mut buffer = String::with_capacity(64);
+		self.serialize_value_to_string(value, &mut buffer);
+		buffer
+	}
+
+	fn serialize_value_to_string(&self, value: &Value, buffer: &mut String) {
+		match value {
+			Value::String(s) => {
+				if s.contains('"') {
+					buffer.push_str(s);
+				} else {
+					buffer.push('"');
+					buffer.push_str(s);
+					buffer.push('"');
+				}
+			},
+			Value::Number(num) => match num {
+				Number::Integer(i) => buffer.push_str(&i.to_string()),
+				Number::Float(f) => buffer.push_str(&f.to_string()),
+				Number::Binary(b) => write!(buffer, "0b{:b}", b).unwrap(),
+				Number::Hexadecimal(h) => write!(buffer, "0x{:X}", h).unwrap(),
+			},
+			Value::Boolean(b) => buffer.push_str(if *b { "True" } else { "False" }),
+			Value::List(list) => {
+				buffer.push('[');
+				for (i, item) in list.iter().enumerate() {
+					if i > 0 {
+						buffer.push_str(", ");
+					}
+					self.serialize_value_to_string(item, buffer);
+				}
+				buffer.push(']');
+			},
+			Value::Reference(ref_val) => {
+				self.serialize_reference_to_string(ref_val, buffer);
+			},
+			Value::Intrinsic(name) => {
+				buffer.push_str(name);
+				buffer.push_str("!!");
+			},
+			Value::Nil => buffer.push_str("Nil"),
+		}
+	}
+
+	fn serialize_value_selective(
+		&self,
+		value: &Value,
+		dumped_namespaces: &mut HashSet<Arc<String>>,
+		to_dump: &mut Vec<Arc<String>>,
+	) -> String {
+		let mut buffer = String::with_capacity(64);
+		match value {
+			Value::List(list) => {
+				buffer.push('[');
+				for (i, item) in list.iter().enumerate() {
+					if i > 0 {
+						buffer.push_str(", ");
+					}
+					buffer.push_str(&self.serialize_value_selective(item, dumped_namespaces, to_dump));
+				}
+				buffer.push(']');
+			},
+			Value::Reference(ref_val) => {
+				self.serialize_reference_selective(ref_val, dumped_namespaces, to_dump, &mut buffer);
+			},
+			_ => self.serialize_value_to_string(value, &mut buffer),
+		}
+		buffer
+	}
+
+	fn serialize_reference_to_string(&self, ref_val: &Reference, buffer: &mut String) {
+		match ref_val.ref_type {
+			ReferenceType::External => buffer.push('&'),
+			ReferenceType::Local => buffer.push('%'),
+		}
+
+		if let Some(ns) = &ref_val.namespace {
+			buffer.push_str(ns);
+			buffer.push('.');
+		}
+		buffer.push_str(&ref_val.variable);
+
+		for acc in &ref_val.accessors {
+			match acc {
+				Accessor::Index(i) => write!(buffer, "->({})", i).unwrap(),
+				Accessor::Range(start, end) => write!(buffer, "->({}, {})", start, end).unwrap(),
+				Accessor::Key(key) => write!(buffer, "->[{}]", key).unwrap(),
+			}
+		}
+	}
+
+	fn serialize_reference_selective(
+		&self,
+		ref_val: &Reference,
+		dumped_namespaces: &mut HashSet<Arc<String>>,
+		to_dump: &mut Vec<Arc<String>>,
+		buffer: &mut String,
+	) {
+		if let Some(ns) = &ref_val.namespace {
+			if !dumped_namespaces.contains(ns) {
+				to_dump.push(Arc::from(ns.to_string()));
+			}
+		}
+		self.serialize_reference_to_string(ref_val, buffer);
 	}
 }

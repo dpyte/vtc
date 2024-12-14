@@ -123,7 +123,13 @@ pub extern "C" fn runtime_get_boolean(runtime: CRuntime, namespace: *const c_cha
 }
 
 #[no_mangle]
-pub extern "C" fn runtime_get_list(runtime: CRuntime, namespace: *const c_char, variable: *const c_char, result: *mut *mut Rc<Value>, length: *mut usize) -> c_int {
+pub extern "C" fn runtime_get_list(
+	runtime: CRuntime,
+	namespace: *const c_char,
+	variable: *const c_char,
+	result: *mut *mut Value,
+	length: *mut usize,
+) -> c_int {
 	let runtime = unsafe { runtime.0.as_mut() }.unwrap();
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();
@@ -131,10 +137,12 @@ pub extern "C" fn runtime_get_list(runtime: CRuntime, namespace: *const c_char, 
 	match runtime.get_value(namespace, variable, &[]) {
 		Ok(value) => {
 			if let Value::List(list) = &*value {
-				let boxed_slice = <Vec<Rc<Value>> as Clone>::clone(&list.clone()).into_boxed_slice();
+				// Clone the Vec<Value> and convert to boxed slice
+				let values: Vec<Value> = list.iter().cloned().collect();
+				let boxed_slice = values.into_boxed_slice();
 				let raw_ptr = Box::into_raw(boxed_slice);
 				unsafe {
-					*result = raw_ptr as *mut Rc<Value>;
+					*result = raw_ptr as *mut Value;
 					*length = (*raw_ptr).len();
 				}
 				0
@@ -147,19 +155,36 @@ pub extern "C" fn runtime_get_list(runtime: CRuntime, namespace: *const c_char, 
 }
 
 #[no_mangle]
-pub extern "C" fn runtime_as_dict(runtime: CRuntime, namespace: *const c_char, variable: *const c_char) -> *mut c_void {
+pub extern "C" fn runtime_as_dict(
+	runtime: CRuntime,
+	namespace: *const c_char,
+	variable: *const c_char,
+) -> *mut c_void {
 	let runtime = unsafe { runtime.0.as_mut() }.unwrap();
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();
 
 	match runtime.as_dict(namespace, variable) {
-		Ok(dict) => Box::into_raw(Box::new(dict)) as *mut c_void,
+		Ok(dict) => {
+			// Convert HashMap<String, Arc<Value>> to HashMap<String, Value>
+			let converted: HashMap<String, Value> = dict
+				.into_iter()
+				.map(|(k, v)| (k, (*v).clone()))
+				.collect();
+			Box::into_raw(Box::new(converted)) as *mut c_void
+		},
 		Err(_) => ptr::null_mut(),
 	}
 }
 
 #[no_mangle]
-pub extern "C" fn runtime_flatten_list(runtime: CRuntime, namespace: *const c_char, variable: *const c_char, result: *mut *mut Value, length: *mut usize) -> c_int {
+pub extern "C" fn runtime_flatten_list(
+	runtime: CRuntime,
+	namespace: *const c_char,
+	variable: *const c_char,
+	result: *mut *mut Value,
+	length: *mut usize,
+) -> c_int {
 	let runtime = unsafe { runtime.0.as_mut() }.unwrap();
 	let namespace = unsafe { CStr::from_ptr(namespace) }.to_str().unwrap();
 	let variable = unsafe { CStr::from_ptr(variable) }.to_str().unwrap();

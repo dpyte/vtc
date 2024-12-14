@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
-	use std::collections::HashMap;
 	use std::fs;
 	use std::path::PathBuf;
-	use std::rc::Rc;
+	use std::sync::Arc;
+
+	use fnv::FnvHashMap;
 
 	use vtc::runtime::Runtime;
 	use vtc::value::{Number, Reference, ReferenceType, Value};
@@ -33,12 +34,12 @@ mod tests {
 		let (mut runtime, output_path) = setup();
 
 		runtime.namespaces.insert(
-			Rc::new("test_namespace".to_string()),
+			Arc::new("test_namespace".to_string()),
 			{
-				let mut map = HashMap::new();
+				let mut map = FnvHashMap::default();
 				map.insert(
-					Rc::new("test_var".to_string()),
-					Rc::new(Value::String(Rc::new("Hello, World!".to_string())))
+					Arc::new("test_var".to_string()),
+					Arc::new(Value::String("Hello, World!".to_string()))
 				);
 				map
 			}
@@ -58,19 +59,19 @@ mod tests {
 		let (mut runtime, output_path) = setup();
 
 		runtime.namespaces.insert(
-			Rc::new("namespace1".to_string()),
+			Arc::new("namespace1".to_string()),
 			{
-				let mut map = HashMap::new();
-				map.insert(Rc::new("var1".to_string()), Rc::new(Value::Number(Number::Integer(42))));
+				let mut map = FnvHashMap::default();
+				map.insert(Arc::new("var1".to_string()), Arc::new(Value::Number(Number::Integer(42))));
 				map
 			}
 		);
 
 		runtime.namespaces.insert(
-			Rc::new("namespace2".to_string()),
+			Arc::new("namespace2".to_string()),
 			{
-				let mut map = HashMap::new();
-				map.insert(Rc::new("var2".to_string()), Rc::new(Value::Number(Number::Float(3.14))));
+				let mut map = FnvHashMap::default();
+				map.insert(Arc::new("var2".to_string()), Arc::new(Value::Number(Number::Float(3.14))));
 				map
 			}
 		);
@@ -92,26 +93,26 @@ mod tests {
 		let (mut runtime, output_path) = setup();
 
 		runtime.namespaces.insert(
-			Rc::new("namespace1".to_string()),
+			Arc::new("namespace1".to_string()),
 			{
-				let mut map = std::collections::HashMap::new();
-				map.insert(Rc::new("var1".to_string()), Rc::new(Value::Number(Number::Integer(42))));
+				let mut map = FnvHashMap::default();
+				map.insert(Arc::new("var1".to_string()), Arc::new(Value::Number(Number::Integer(42))));
 				map
 			}
 		);
 
 		runtime.namespaces.insert(
-			Rc::new("namespace2".to_string()),
+			Arc::new("namespace2".to_string()),
 			{
-				let mut map = std::collections::HashMap::new();
+				let mut map = FnvHashMap::default();
 				map.insert(
-					Rc::new("var2".to_string()),
-					Rc::new(Value::Reference(Rc::new(Reference {
+					Arc::new("var2".to_string()),
+					Arc::new(Value::Reference(Reference {
 						ref_type: ReferenceType::Local,
-						namespace: Some(Rc::new("namespace1".to_string())),
-						variable: Rc::new("var1".to_string()),
+						namespace: Some(Arc::new("namespace1".to_string())),
+						variable: Arc::new("var1".to_string()),
 						accessors: smallvec::smallvec![]
-					})))
+					}))
 				);
 				map
 			}
@@ -133,12 +134,12 @@ mod tests {
 		let (mut runtime, output_path) = setup();
 
 		runtime.namespaces.insert(
-			Rc::new("intrinsic_namespace".to_string()),
+			Arc::new("intrinsic_namespace".to_string()),
 			{
-				let mut map = std::collections::HashMap::new();
+				let mut map = FnvHashMap::default();
 				map.insert(
-					Rc::new("intrinsic_var".to_string()),
-					Rc::new(Value::Intrinsic(Rc::from("std_add_int".to_string())))
+					Arc::new("intrinsic_var".to_string()),
+					Arc::new(Value::Intrinsic("std_add_int".to_string()))
 				);
 				map
 			}
@@ -157,10 +158,10 @@ mod tests {
 	fn test_selective_dump_nonexistent_namespace() {
 		let (mut runtime, output_path) = setup();
 		runtime.namespaces.insert(
-			Rc::new("existing_namespace".to_string()),
+			Arc::new("existing_namespace".to_string()),
 			{
-				let mut map = HashMap::new();
-				map.insert(Rc::new("var".to_string()), Rc::new(Value::Number(Number::Integer(42))));
+				let mut map = FnvHashMap::default();
+				map.insert(Arc::new("var".to_string()), Arc::new(Value::Number(Number::Integer(42))));
 				map
 			}
 		);
@@ -176,34 +177,34 @@ mod tests {
 		let (mut runtime, output_path) = setup();
 
 		runtime.namespaces.insert(
-			Rc::new("namespace1".to_string()),
+			Arc::new("namespace1".to_string()),
 			{
-				let mut map = std::collections::HashMap::new();
+				let mut map = FnvHashMap::default();
 				map.insert(
-					Rc::new("var1".to_string()),
-					Rc::new(Value::Reference(Rc::new(Reference {
+					Arc::new("var1".to_string()),
+					Arc::new(Value::Reference(Reference {
 						ref_type: ReferenceType::Local,
-						namespace: Some(Rc::new("namespace2".to_string())),
-						variable: Rc::new("var2".to_string()),
+						namespace: Some(Arc::new("namespace2".to_string())),
+						variable: Arc::new("var2".to_string()),
 						accessors: smallvec::smallvec![]
-					})))
+					}))
 				);
 				map
 			}
 		);
 
 		runtime.namespaces.insert(
-			Rc::new("namespace2".to_string()),
+			Arc::new("namespace2".to_string()),
 			{
-				let mut map = std::collections::HashMap::new();
+				let mut map = FnvHashMap::default();
 				map.insert(
-					Rc::new("var2".to_string()),
-					Rc::new(Value::Reference(Rc::new(Reference {
+					Arc::new("var2".to_string()),
+					Arc::new(Value::Reference(Reference {
 						ref_type: ReferenceType::Local,
-						namespace: Some(Rc::new("namespace1".to_string())),
-						variable: Rc::new("var1".to_string()),
+						namespace: Some(Arc::new("namespace1".to_string())),
+						variable: Arc::new("var1".to_string()),
 						accessors: smallvec::smallvec![]
-					})))
+					}))
 				);
 				map
 			}

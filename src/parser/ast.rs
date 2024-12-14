@@ -1,13 +1,12 @@
 use std::fmt;
-use std::rc::Rc;
+
 use crate::value::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
 
-// Implement Display traits (unchanged from previous version)
 impl fmt::Display for VtcFile {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		for namespace in &self.namespaces {
+		for (i, namespace) in self.namespaces.iter().enumerate() {
 			write!(f, "{}", namespace)?;
-			if !Rc::ptr_eq(namespace, self.namespaces.last().unwrap()) {
+			if i < self.namespaces.len() - 1 {
 				writeln!(f)?;
 			}
 		}
@@ -18,9 +17,9 @@ impl fmt::Display for VtcFile {
 impl fmt::Display for Namespace {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		writeln!(f, "@{}:", self.name)?;
-		for variable in &self.variables {
+		for (i, variable) in self.variables.iter().enumerate() {
 			write!(f, "    {}", variable)?;
-			if !Rc::ptr_eq(variable, self.variables.last().unwrap()) {
+			if i < self.variables.len() - 1 {
 				writeln!(f)?;
 			}
 		}

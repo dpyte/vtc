@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
-	use std::collections::HashMap;
-	use std::rc::Rc;
+	use std::sync::Arc;
+
+	use fnv::FnvHashMap;
+
 	use vtc::runtime::Runtime;
 	use vtc::value::Number::Integer;
 	use vtc::value::Value;
@@ -34,8 +36,8 @@ mod tests {
 		let rt = setup_runtime();
 		let list = rt.as_dict("test_namespace", "complex_dict").unwrap();
 
-		let mut match_against: HashMap<String, Rc<Value>> = HashMap::new();
-		match_against.insert(String::from(r#""Hello, World!""#), Rc::new(Number(Integer(24))));
+		let mut match_against = FnvHashMap::default();
+		match_against.insert(String::from(r#""Hello, World!""#), Arc::new(Number(Integer(24))));
 		println!("{:?}", match_against);
 		assert_eq!(list, match_against);
 	}

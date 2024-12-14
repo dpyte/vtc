@@ -16,6 +16,7 @@ pub enum RuntimeError {
 	TypeError(String),
 	UnknownIntrinsic(String),
 	InvalidIntrinsicArgs,
+	IntrinsicTypeMismatch(String),
 	ConversionError(String),
 	NamespaceNotFound(String),
 	VariableNotFound(String),
@@ -40,6 +41,7 @@ impl Display for RuntimeError {
 			RuntimeError::NoNamespaces => write!(f, "No namespaces found"),
 			RuntimeError::InvalidIntrinsicArgs => write!(f, "Invalid number of intrinsic arguments"),
 			RuntimeError::NamespaceAlreadyExists(name) => write!(f, "Namespace already exists: {}", name),
+			RuntimeError::IntrinsicTypeMismatch(argtype) => write!(f, "Invalid intrinsic argument. Data type mismatch error: {}", argtype),
 		}
 	}
 }

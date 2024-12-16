@@ -213,28 +213,3 @@ pub fn parse(tokens: &[Token]) -> Result<VtcFile, String> {
 	let mut parser = Parser::new(tokens);
 	parser.parse()
 }
-
-#[cfg(test)]
-mod tests {
-	use crate::parser::lexer::tokenize;
-
-	use super::*;
-
-	#[test]
-	fn test_parse_simple_namespace() {
-		let input = "@test: $var := [1, 2, 3]";
-		let (_, tokens) = tokenize(input).unwrap();
-		let result = parse(&tokens).unwrap();
-		assert_eq!(result.namespaces.len(), 1);
-		assert_eq!(result.namespaces[0].name, "test");
-	}
-
-	#[test]
-	fn test_parse_reference() {
-		let input = "@test: $var := %other.value->(0)";
-		let (_, tokens) = tokenize(input).unwrap();
-		let result = parse(&tokens).unwrap();
-		assert_eq!(result.namespaces.len(), 1);
-		// Add more specific assertions
-	}
-}

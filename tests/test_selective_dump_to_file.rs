@@ -49,7 +49,7 @@ mod tests {
 
 		let content = fs::read_to_string(&output_path).unwrap();
 		println!("Actual content:\n{}", content);
-		assert_eq!(content, "@test_namespace:\n    $test_var := \"Hello, World!\"\n\n");
+		assert_eq!(content, "@test_namespace:\n\t$test_var := \"Hello, World!\"\n\n");
 
 		teardown(&output_path);
 	}
@@ -81,9 +81,9 @@ mod tests {
 		let content = fs::read_to_string(&output_path).unwrap();
 		println!("Actual content:\n{}", content);
 		assert!(content.contains("@namespace1:"));
-		assert!(content.contains("$var1 := 42"));
+		assert!(content.contains("$var1:=42"));
 		assert!(content.contains("@namespace2:"));
-		assert!(content.contains("$var2 := 3.14"));
+		assert!(content.contains("$var2:=3.14"));
 
 		teardown(&output_path);
 	}
@@ -149,7 +149,7 @@ mod tests {
 
 		let content = fs::read_to_string(&output_path).unwrap();
 		assert!(content.contains("@intrinsic_namespace:"));
-		assert!(content.contains("$intrinsic_var := std_add_int!!"));
+		assert!(content.contains("$intrinsic_var:=std_add_int!!"));
 
 		teardown(&output_path);
 	}

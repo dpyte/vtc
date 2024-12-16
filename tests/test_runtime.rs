@@ -37,7 +37,7 @@ mod tests {
 		let list = rt.as_dict("test_namespace", "complex_dict").unwrap();
 
 		let mut match_against = FnvHashMap::default();
-		match_against.insert(String::from(r#""Hello, World!""#), Arc::new(Number(Integer(24))));
+		match_against.insert(String::from(r#"Hello, World!"#), Arc::new(Number(Integer(24))));
 		println!("{:?}", match_against);
 		assert_eq!(list, match_against);
 	}

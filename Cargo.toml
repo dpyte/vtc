@@ -16,6 +16,7 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [dependencies]
+nom = { version = "7.1.3" }
 anyhow = "1.0.94"
 thiserror = "2.0.6"
 smallvec = { version = "1.13.2", features = ["const_generics", "const_new"] }
@@ -27,10 +28,13 @@ fnv = "1.0.7"
 criterion = { version = "0.5.1", default-features = false }
 proptest = { version = "1.0", default-features = false, features = ["std"] }
 insta = { version = "1.26", default-features = false }
+tempfile = "3.14.0"
+rand = "0.8.5"
 
 [[bench]]
 name = "vtc_benchmarks"
 harness = false
+path = "benches/vtc_benchmarks.rs"
 
 [profile.dev]
 opt-level = 1

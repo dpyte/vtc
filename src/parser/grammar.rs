@@ -43,7 +43,7 @@ impl<'a> Parser<'a> {
 			variables.push(self.parse_variable()?);
 		}
 
-		Ok(Namespace { name, variables })
+		Ok(Namespace { name: name.to_string(), variables })
 	}
 
 	fn parse_variable(&mut self) -> Result<Variable, String> {
@@ -54,15 +54,15 @@ impl<'a> Parser<'a> {
 		};
 		self.expect_token(|t| *t == Token::Assign)?;
 		let value = self.parse_value()?;
-		Ok(Variable { name, value })
+		Ok(Variable { name: name.to_string(), value })
 	}
 
 	fn parse_value(&mut self) -> Result<Value, String> {
 		match self.next_token() {
 			Some(token) => match token {
 				Token::OpenBracket => self.parse_list(),
-				Token::Intrinsic(i) => Ok(Value::Intrinsic(i.clone())),
-				Token::String(s) => Ok(Value::String(s.clone())),
+				Token::Intrinsic(i) => Ok(Value::Intrinsic(i.to_string())),
+				Token::String(s) => Ok(Value::String(s.to_string())),
 				Token::Integer(i) => Ok(Value::Number(Number::Integer(*i))),
 				Token::Float(f) => Ok(Value::Number(Number::Float(*f))),
 				Token::Binary(b) => Ok(Value::Number(Number::Binary(*b))),
@@ -196,7 +196,7 @@ impl<'a> Parser<'a> {
 				Token::Namespace(s)
 				| Token::Variable(s)
 				| Token::String(s)
-				| Token::Identifier(s) => Ok(s.clone()),
+				| Token::Identifier(s) => Ok(s.to_string()),
 				Token::Integer(i) => Ok(i.to_string()),
 				Token::Float(f) => Ok(f.to_string()),
 				Token::Binary(b) => Ok(format!("0b{:b}", b)),

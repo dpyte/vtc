@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use base64::{alphabet, Engine as _, engine::{self, general_purpose}};
+use base64::{alphabet, engine::{self, general_purpose}, Engine as _};
 use fnv::FnvHashMap;
 use sha2::{Digest, Sha256};
 
@@ -11,6 +11,21 @@ use crate::value::Number;
 use crate::value::Value;
 
 pub type VtcFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
+pub type IntrinsicFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
+
+fn extract_number(value: &Arc<Value>) -> Result<Number, String> {
+	match &**value {
+		Value::Number(n) => Ok(n.clone()),
+		_ => Err("Expected a number".to_string())
+	}
+}
+
+fn extract_string(value: &Arc<Value>) -> Result<String, String> {
+	match &**value {
+		Value::String(s) => Ok(s.clone()),
+		_ => Err("Expected a string".to_string())
+	}
+}
 
 // Helper functions
 mod helpers {
@@ -479,6 +494,162 @@ impl StdLibLoader {
 		self.loadable.insert(name, function);
 		Ok(())
 	}
+}
+
+pub fn get_standard_functions() -> Vec<(&'static str, IntrinsicFn)> {
+	vec![
+		// Arithmetic - Integer
+		("std_add_int", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Integer(a)), Ok(Number::Integer(b))) => {
+					Arc::new(Value::Number(Number::Integer(a.wrapping_add(b))))
+				},
+				_ => Arc::new(Value::String("Error: Expected integers".to_string()))
+			}
+		})),
+		("std_sub_int", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Integer(a)), Ok(Number::Integer(b))) => {
+					Arc::new(Value::Number(Number::Integer(a.wrapping_sub(b))))
+				},
+				_ => Arc::new(Value::String("Error: Expected integers".to_string()))
+			}
+		})),
+		("std_mul_int", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Integer(a)), Ok(Number::Integer(b))) => {
+					Arc::new(Value::Number(Number::Integer(a.wrapping_mul(b))))
+				},
+				_ => Arc::new(Value::String("Error: Expected integers".to_string()))
+			}
+		})),
+
+		// Arithmetic - Float
+		("std_add_float", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Float(a)), Ok(Number::Float(b))) => {
+					Arc::new(Value::Number(Number::Float(a + b)))
+				},
+				_ => Arc::new(Value::String("Error: Expected floats".to_string()))
+			}
+		})),
+		("std_sub_float", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Float(a)), Ok(Number::Float(b))) => {
+					Arc::new(Value::Number(Number::Float(a - b)))
+				},
+				_ => Arc::new(Value::String("Error: Expected floats".to_string()))
+			}
+		})),
+
+		// Comparison
+		("std_eq", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Integer(a)), Ok(Number::Integer(b))) => {
+					Arc::new(Value::Boolean(a == b))
+				},
+				(Ok(Number::Float(a)), Ok(Number::Float(b))) => {
+					Arc::new(Value::Boolean(a == b))
+				},
+				_ => Arc::new(Value::Boolean(false))
+			}
+		})),
+		("std_lt", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Integer(a)), Ok(Number::Integer(b))) => {
+					Arc::new(Value::Boolean(a < b))
+				},
+				(Ok(Number::Float(a)), Ok(Number::Float(b))) => {
+					Arc::new(Value::Boolean(a < b))
+				},
+				_ => Arc::new(Value::String("Error: Cannot compare different types".to_string()))
+			}
+		})),
+		("std_gt", Box::new(|args| {
+			if args.len() != 2 {
+				return Arc::new(Value::String("Error: Expected 2 arguments".to_string()));
+			}
+			match (extract_number(&args[0]), extract_number(&args[1])) {
+				(Ok(Number::Integer(a)), Ok(Number::Integer(b))) => {
+					Arc::new(Value::Boolean(a > b))
+				},
+				(Ok(Number::Float(a)), Ok(Number::Float(b))) => {
+					Arc::new(Value::Boolean(a > b))
+				},
+				_ => Arc::new(Value::String("Error: Cannot compare different types".to_string()))
+			}
+		})),
+
+		// String operations
+		("std_concat", Box::new(|args| {
+			let mut result = String::new();
+			for arg in args {
+				if let Ok(s) = extract_string(&arg) {
+					result.push_str(&s);
+				}
+			}
+			Arc::new(Value::String(result))
+		})),
+		("std_to_uppercase", Box::new(|args| {
+			if args.len() != 1 {
+				return Arc::new(Value::String("Error: Expected 1 argument".to_string()));
+			}
+			match extract_string(&args[0]) {
+				Ok(s) => Arc::new(Value::String(s.to_uppercase())),
+				Err(e) => Arc::new(Value::String(format!("Error: {}", e)))
+			}
+		})),
+		("std_to_lowercase", Box::new(|args| {
+			if args.len() != 1 {
+				return Arc::new(Value::String("Error: Expected 1 argument".to_string()));
+			}
+			match extract_string(&args[0]) {
+				Ok(s) => Arc::new(Value::String(s.to_lowercase())),
+				Err(e) => Arc::new(Value::String(format!("Error: {}", e)))
+			}
+		})),
+
+		// Type conversion
+		("std_int_to_float", Box::new(|args| {
+			if args.len() != 1 {
+				return Arc::new(Value::String("Error: Expected 1 argument".to_string()));
+			}
+			match extract_number(&args[0]) {
+				Ok(Number::Integer(i)) => Arc::new(Value::Number(Number::Float(i as f64))),
+				_ => Arc::new(Value::String("Error: Expected integer".to_string()))
+			}
+		})),
+		("std_float_to_int", Box::new(|args| {
+			if args.len() != 1 {
+				return Arc::new(Value::String("Error: Expected 1 argument".to_string()));
+			}
+			match extract_number(&args[0]) {
+				Ok(Number::Float(f)) => Arc::new(Value::Number(Number::Integer(f as i64))),
+				_ => Arc::new(Value::String("Error: Expected float".to_string()))
+			}
+		}))
+	]
 }
 
 impl fmt::Debug for StdLibLoader {

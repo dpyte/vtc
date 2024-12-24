@@ -1,10 +1,9 @@
-use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_main};
-use rand::{Rng, SeedableRng};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rand::distributions::Alphanumeric;
+use rand::{Rng, SeedableRng};
 
-// Update this line
-use vtc::parser::grammar::parse;
 use vtc::parser::lexer::tokenize;
+use vtc::parser::parse_vtc;
 use vtc::runtime::Runtime;
 use vtc::value::Accessor;
 
@@ -87,21 +86,18 @@ fn benchmark_tokenize(c: &mut Criterion) {
 fn benchmark_parse(c: &mut Criterion) {
 	let mut group = c.benchmark_group("Parse");
 
-	let (_, small_tokens) = tokenize(SMALL_INPUT).unwrap();
 	group.bench_function("Small Input", |b| {
-		b.iter(|| parse(black_box(&small_tokens)))
+		b.iter(|| parse_vtc(black_box(SMALL_INPUT)))
 	});
 
-	// let (_, large_tokens) = tokenize(LARGE_INPUT).unwrap();
-	// group.bench_function("Large Input", |b| {
-	// 	b.iter(|| parse(black_box(&large_tokens)))
-	// });
+	group.bench_function("Large Input", |b| {
+		b.iter(|| parse_vtc(black_box(LARGE_INPUT)))
+	});
 
 	for size in [10, 100, 1000].iter() {
 		let random_input = generate_random_vtc(*size);
-		let (_, tokens) = tokenize(&random_input).unwrap();
-		group.bench_with_input(BenchmarkId::new("Random Input", size), &tokens, |b, i| {
-			b.iter(|| parse(black_box(i)))
+		group.bench_with_input(BenchmarkId::new("Random Input", size), &random_input, |b, i| {
+			b.iter(|| parse_vtc(black_box(i)))
 		});
 	}
 
@@ -125,46 +121,37 @@ fn benchmark_runtime(c: &mut Criterion) {
 		})
 	});
 
-	for size in [10, 100, 1000].iter() {
-		let random_input = generate_random_vtc(*size);
-		group.bench_with_input(BenchmarkId::new("Load Random Input", size), &random_input, |b, i| {
-			b.iter(|| {
-				let mut runtime = Runtime::new();
-				runtime.load_vtc(black_box(i)).unwrap();
-			})
-		});
-	}
-
+	// Test runtime value retrieval
 	let mut runtime = Runtime::new();
-	runtime.load_vtc(LARGE_INPUT).unwrap();
+	runtime.load_vtc(SMALL_INPUT).unwrap();
 
 	group.bench_function("Get Simple Value", |b| {
 		b.iter(|| {
 			runtime.get_value(
-				black_box("system_config"),
-				black_box("max_connections"),
+				black_box("config"),
+				black_box("value"),
 				black_box(&[]),
-			).unwrap();
+			).unwrap()
+		})
+	});
+
+	group.bench_function("Get List Value", |b| {
+		b.iter(|| {
+			runtime.get_value(
+				black_box("config"),
+				black_box("list"),
+				black_box(&[]),
+			).unwrap()
 		})
 	});
 
 	group.bench_function("Get Nested Value", |b| {
 		b.iter(|| {
 			runtime.get_value(
-				black_box("references"),
-				black_box("complex_reference"),
-				black_box(&[Accessor::Index(2)]),
-			).unwrap();
-		})
-	});
-
-	group.bench_function("Get Complex Value", |b| {
-		b.iter(|| {
-			runtime.get_value(
-				black_box("calculations"),
-				black_box("complex_calculation"),
-				black_box(&[]),
-			).unwrap();
+				black_box("config"),
+				black_box("nested"),
+				black_box(&[Accessor::Index(1), Accessor::Index(1)]),
+			).unwrap()
 		})
 	});
 
@@ -175,53 +162,56 @@ fn benchmark_intrinsics(c: &mut Criterion) {
 	let mut group = c.benchmark_group("Intrinsics");
 
 	let intrinsic_input = r#"
-    @math:
+    @arithmetic:
         $add := [std_add_int!!, 10, 20]
         $sub := [std_sub_int!!, 50, 30]
         $mul := [std_mul_int!!, 5, 6]
         $div := [std_div_int!!, 100, 4]
         $nested := [std_add_int!!, [std_mul_int!!, 5, 5], [std_sub_int!!, 50, 25]]
+    @float:
+        $add_float := [std_add_float!!, 10.5, 20.7]
+        $mul_float := [std_mul_float!!, 3.14, 2.0]
+    @conversion:
+        $int_to_float := [std_int_to_float!!, 42]
+        $float_to_int := [std_float_to_int!!, 3.14]
     @string:
         $uppercase := [std_to_uppercase!!, "hello world"]
+        $lowercase := [std_to_lowercase!!, "HELLO WORLD"]
         $concat := [std_concat!!, "Hello, ", "World!"]
-    @bitwise:
-        $and := [std_bitwise_and!!, 0b1010, 0b1100]
-        $not := [std_bitwise_not!!, 0b1010]
-    @advanced:
-        $base64 := [std_base64_encode!!, "Hello, VTC!"]
-        $hash := [std_hash!!, "password123", "sha256"]
+        $replace := [std_replace!!, "Hello World", "World", "VTC"]
+        $substring := [std_substring!!, "Hello World", 0, 5]
     "#;
 
 	let mut runtime = Runtime::new();
 	runtime.load_vtc(intrinsic_input).unwrap();
 
-	group.bench_function("Simple Arithmetic Intrinsic", |b| {
+	group.bench_function("Integer Arithmetic", |b| {
 		b.iter(|| {
-			runtime.get_value(black_box("math"), black_box("add"), black_box(&[])).unwrap();
+			runtime.get_value(black_box("arithmetic"), black_box("add"), black_box(&[])).unwrap()
 		})
 	});
 
-	group.bench_function("Nested Arithmetic Intrinsic", |b| {
+	group.bench_function("Nested Arithmetic", |b| {
 		b.iter(|| {
-			runtime.get_value(black_box("math"), black_box("nested"), black_box(&[])).unwrap();
+			runtime.get_value(black_box("arithmetic"), black_box("nested"), black_box(&[])).unwrap()
 		})
 	});
 
-	group.bench_function("String Intrinsic", |b| {
+	group.bench_function("Float Operations", |b| {
 		b.iter(|| {
-			runtime.get_value(black_box("string"), black_box("uppercase"), black_box(&[])).unwrap();
+			runtime.get_value(black_box("float"), black_box("add_float"), black_box(&[])).unwrap()
 		})
 	});
 
-	group.bench_function("Bitwise Intrinsic", |b| {
+	group.bench_function("Type Conversion", |b| {
 		b.iter(|| {
-			runtime.get_value(black_box("bitwise"), black_box("and"), black_box(&[])).unwrap();
+			runtime.get_value(black_box("conversion"), black_box("int_to_float"), black_box(&[])).unwrap()
 		})
 	});
 
-	group.bench_function("Advanced Intrinsic", |b| {
+	group.bench_function("String Operations", |b| {
 		b.iter(|| {
-			runtime.get_value(black_box("advanced"), black_box("hash"), black_box(&[])).unwrap();
+			runtime.get_value(black_box("string"), black_box("concat"), black_box(&[])).unwrap()
 		})
 	});
 

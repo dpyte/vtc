@@ -1,8 +1,8 @@
+use fnv::{FnvHashMap, FnvHashSet};
+use smallvec::SmallVec;
 use ::std::fs;
 use ::std::path::PathBuf;
 use ::std::sync::Arc;
-use fnv::{FnvHashMap, FnvHashSet};
-use smallvec::SmallVec;
 
 use crate::parser::parse_vtc;
 use crate::runtime::error::RuntimeError;
@@ -16,8 +16,8 @@ pub mod serialize;
 mod memory;
 mod utils;
 
+
 /// A thread-safe runtime environment for VTC program execution
-#[derive(Debug)]
 pub struct Runtime {
 	pub namespaces: FnvHashMap<Arc<String>, FnvHashMap<Arc<String>, Arc<Value>>>,
 	std_lib_loader: StdLibLoader
@@ -275,7 +275,6 @@ impl Runtime {
 		visited: &mut FnvHashSet<(Arc<String>, Arc<String>)>,
 	) -> Result<Arc<Value>, RuntimeError> {
 		match &*value {
-			Value::Intrinsic(_) => Err(RuntimeError::InvalidIntrinsicArgs),
 			Value::List(items) => {
 				if let Some(Value::Intrinsic(name)) = items.first() {
 					if let Some(func) = self.std_lib_loader.get_function(name) {
@@ -294,8 +293,8 @@ impl Runtime {
 						.collect::<Result<Vec<Value>, _>>()?;
 					Ok(Arc::new(Value::List(Arc::new(resolved_items))))
 				}
-			}
-			_ => Ok(value),
+			},
+			_ => Ok(value)
 		}
 	}
 
@@ -305,7 +304,7 @@ impl Runtime {
 		items: &[Value],
 		visited: &mut FnvHashSet<(Arc<String>, Arc<String>)>
 	) -> Result<Vec<Arc<Value>>, RuntimeError> {
-		let args = items.iter().skip(1); // Skip intrinsic name
+		let args = items.iter().skip(1);
 		let arg_count = args.clone().count();
 
 		if arg_count == 0 {

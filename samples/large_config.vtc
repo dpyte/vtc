@@ -161,3 +161,133 @@
     $base64_encoded := [std_base64_encode!!, "Secret message"]
     $base64_decoded := [std_base64_decode!!, %base64_encoded]
     $hash := [std_hash!!, "password123", "sha256"]
+
+@advanced_math:
+    # Basic arithmetic with nested operations
+    $compound_interest := [
+        std_mul_float!!,
+        1000.0,  # Principal
+		# 5% interest rate
+        [std_add_float!!, 1.0, [std_div_float!!, 5.0, 100.0] ]
+    ]
+
+    # Multiple operations chain
+    $weighted_average := [
+        std_div_float!!,
+        [std_add_float!!,
+            [std_mul_float!!, 85.5, 0.3],  # Grade 1 with 30% weight
+            [std_mul_float!!, 92.3, 0.7]   # Grade 2 with 70% weight
+        ],
+        [std_add_float!!, 0.3, 0.7]        # Total weights
+    ]
+
+    # Type conversions in calculations
+    $mixed_operations := [
+        std_int_to_float!!,
+        [std_add_int!!,
+            [std_mul_int!!, 5,
+                [std_float_to_int!!,
+                    [std_div_float!!, 10.5, 2.0]
+                ]
+            ],
+            25
+        ]
+    ]
+
+    # Statistical calculations
+    $std_deviation_calc := [
+        std_mul_float!!,
+        [std_div_float!!,
+            [std_add_float!!,
+                [std_mul_float!!,
+                    [std_sub_float!!, 10.0, 8.5],
+                    [std_sub_float!!, 10.0, 8.5]
+                ],
+                [std_mul_float!!,
+                    [std_sub_float!!, 7.0, 8.5],
+                    [std_sub_float!!, 7.0, 8.5]
+                ]
+            ],
+            2.0  # n-1 for sample standard deviation
+        ],
+        0.5  # Square root would go here if we had a power function
+    ]
+
+    # Complex financial calculation
+    $mortgage_payment := [
+        std_mul_float!!,
+        300000.0,  # Principal
+        [std_div_float!!,
+            [std_mul_float!!,
+                0.035,  # Annual interest rate 3.5%
+                [std_add_float!!,
+                    1.0,
+                    [std_div_float!!, 0.035, 12.0]  # Monthly interest
+                ]
+            ],
+            [std_sub_float!!,
+                1.0,
+                [std_div_float!!, 1.0, 360.0]  # 30-year term in months
+            ]
+        ]
+    ]
+
+    # Unit conversion calculation
+    $temperature_conversion := [
+        std_add_float!!,
+        [std_mul_float!!,
+            [std_div_float!!,
+                9.0,
+                5.0
+            ],
+            25.0  # Celsius temperature
+        ],
+        32.0  # Fahrenheit conversion
+    ]
+
+    # Geometric calculations
+    $circle_calculations := [
+        std_mul_float!!,
+        3.14159,  # Pi
+        [std_mul_float!!,
+            10.0,  # radius
+            10.0   # radius for area
+        ]
+    ]
+
+    # Error margin calculation
+    $error_margin := [
+        std_mul_float!!,
+        [std_div_float!!,
+            [std_sub_float!!,
+                [std_mul_float!!, 2.0, [std_add_float!!, 0.5, 0.5]],
+                1.0
+            ],
+            1.0
+        ],
+        100.0  # Convert to percentage
+    ]
+
+    # Combined operations
+    $complex_calculation := [
+        std_mul_float!!,
+        [std_div_float!!,
+            [std_add_float!!,
+                [std_mul_float!!,
+                    [std_int_to_float!!,
+                        [std_add_int!!, 10, 5]
+                    ],
+                    2.5
+                ],
+                [std_mul_float!!,
+                    3.0,
+                    [std_div_float!!, 15.0, 3.0]
+                ]
+            ],
+            2.0
+        ],
+        [std_sub_float!!,
+            10.0,
+            [std_mul_float!!, 2.0, 2.5]
+        ]
+    ]

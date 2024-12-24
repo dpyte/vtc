@@ -21,6 +21,14 @@ pub enum RuntimeError {
 	NamespaceNotFound(String),
 	VariableNotFound(String),
 	NamespaceAlreadyExists(String),
+	CustomFunctionError(String),
+	AnyhowError(anyhow::Error),
+}
+
+impl From<anyhow::Error> for RuntimeError {
+	fn from(err: anyhow::Error) -> Self {
+		RuntimeError::AnyhowError(err)
+	}
 }
 
 impl Display for RuntimeError {
@@ -42,6 +50,8 @@ impl Display for RuntimeError {
 			RuntimeError::InvalidIntrinsicArgs => write!(f, "Invalid number of intrinsic arguments"),
 			RuntimeError::NamespaceAlreadyExists(name) => write!(f, "Namespace already exists: {}", name),
 			RuntimeError::IntrinsicTypeMismatch(argtype) => write!(f, "Invalid intrinsic argument. Data type mismatch error: {}", argtype),
+			RuntimeError::CustomFunctionError(funcname) => write!(f, "Custom function error: {}", funcname),
+			RuntimeError::AnyhowError(err) => write!(f, "External error: {}", err),
 		}
 	}
 }

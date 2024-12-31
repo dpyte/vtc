@@ -3,7 +3,9 @@ use std::sync::Arc;
 use smallvec::SmallVec;
 
 use crate::parser::lexer::Token;
-use crate::value::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
+use crate::value::{
+	Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile,
+};
 
 const SMALL_VEC_SIZE: usize = 4;
 
@@ -37,7 +39,8 @@ impl<'a> Parser<'a> {
 		self.expect_token(|t| *t == Token::Colon)?;
 
 		let mut variables = Vec::new();
-		while self.peek_token()
+		while self
+			.peek_token()
 			.map_or(false, |t| matches!(t, Token::Variable(_)))
 		{
 			variables.push(self.parse_variable()?);
@@ -93,7 +96,7 @@ impl<'a> Parser<'a> {
 				_ => return Err("Expected ',' or ']'".to_string()),
 			}
 		}
-		Ok(Value::List(Arc::new(values)))  // Only Arc the Vec itself
+		Ok(Value::List(Arc::new(values))) // Only Arc the Vec itself
 	}
 
 	fn parse_reference(&mut self) -> Result<Value, String> {
@@ -113,7 +116,10 @@ impl<'a> Parser<'a> {
 		let parts: Vec<&str> = rest.split('.').collect();
 		let (namespace, variable) = match parts.len() {
 			1 => (None, Arc::new(parts[0].to_string())),
-			2 => (Some(Arc::new(parts[0].to_string())), Arc::new(parts[1].to_string())),
+			2 => (
+				Some(Arc::new(parts[0].to_string())),
+				Arc::new(parts[1].to_string()),
+			),
 			_ => return Err("Invalid reference format".to_string()),
 		};
 

@@ -1,6 +1,6 @@
 [package]
 name = "vtc"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Dhruv Patel"]
 edition = "2021"
 description = "A VTC (Virtual Typed Configuration) parser and runtime"
@@ -9,6 +9,7 @@ repository = "https://github.com/dpyte/vtc"
 readme = "README.md"
 keywords = ["configuration", "parser", "runtime"]
 categories = ["parsing", "config"]
+publish = false
 
 [lib]
 name = "vtc"

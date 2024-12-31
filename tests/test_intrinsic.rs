@@ -3,6 +3,7 @@ mod tests {
 	use std::path::PathBuf;
 	use std::sync::Arc;
 	use std::vec;
+
 	use fnv::FnvHashSet;
 
 	use vtc::runtime::error::RuntimeError;
@@ -72,7 +73,7 @@ mod tests {
 	fn test_intrinsic_with_invalid_args() {
 		let rt = setup_runtime();
 		let invalid_intrinsic = Arc::new(Value::Intrinsic("std_add_int".to_string()));
-		let result = rt.resolve_intrinsics(invalid_intrinsic, &mut FnvHashSet::default());
+		let _result = rt.resolve_intrinsics(invalid_intrinsic, &mut FnvHashSet::default());
 		// assert!(matches!(result, Err(RuntimeError::InvalidIntrinsicArgs)));
 	}
 
@@ -109,13 +110,13 @@ mod tests {
 			Value::Number(Number::Integer(5)),
 			Value::Number(Number::Float(10.5)),
 		])));
-		let result = rt.resolve_intrinsics(mismatched_intrinsic, &mut FnvHashSet::default());
+		let _result = rt.resolve_intrinsics(mismatched_intrinsic, &mut FnvHashSet::default());
 		// assert!(matches!(result, Err(RuntimeError::TypeError(_))));
 	}
 
 	#[test]
 	fn test_large_intrinsic() {
-		let rt = Runtime::from(PathBuf::from("./samples/large_config.vtc")).unwrap();
+		let rt = Runtime::from_file(PathBuf::from("./samples/large_config.vtc")).unwrap();
 		let result = rt.get_value("string_operations", "lowercase", &[]).unwrap();
 		println!(">> {:?}", result);
 		let _res = result;
@@ -123,7 +124,7 @@ mod tests {
 
 	#[test]
 	fn test_gt_intrinsic() {
-		let rt = Runtime::from(PathBuf::from("./samples/large_config.vtc")).unwrap();
+		let rt = Runtime::from_file(PathBuf::from("./samples/large_config.vtc")).unwrap();
 		let result = rt.get_value("conditional_logic", "condition_1", &[]).unwrap();
 		println!(">> {:?}", result);
 		assert_eq!(*result, Value::Boolean(true));
@@ -131,7 +132,7 @@ mod tests {
 
 	#[test]
 	fn test_lt_intrinsic() {
-		let rt = Runtime::from(PathBuf::from("./samples/large_config.vtc")).unwrap();
+		let rt = Runtime::from_file(PathBuf::from("./samples/large_config.vtc")).unwrap();
 		let result = rt.get_value("conditional_logic", "condition_2", &[]).unwrap();
 		println!(">> {:?}", result);
 		assert_eq!(*result, Value::Boolean(true));

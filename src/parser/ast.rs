@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::value::{Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile};
+use crate::value::{
+	Accessor, Namespace, Number, Reference, ReferenceType, Value, Variable, VtcFile,
+};
 
 impl fmt::Display for VtcFile {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

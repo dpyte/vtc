@@ -1,7 +1,5 @@
-# Makefile
-
-CC = gcc
-CFLAGS = -Wall -Werror -I./c
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Werror -I./c
 LDFLAGS = -L./target/release -lvtc
 
 # Detect the operating system
@@ -15,17 +13,23 @@ endif
 
 .PHONY: all clean rust_lib
 
-all: example_program
+all: example_program comprehensive_example
 
 rust_lib:
 	cargo build --release
 
 example_program: example_program.o rust_lib
-	$(CC) example_program.o $(LDFLAGS) -o $@
+	$(CXX) example_program.o $(LDFLAGS) -o $@
 
-example_program.o: ./c/example_program.c
-	$(CC) $(CFLAGS) -c $< -o $@
+example_program.o: ./c/ExampleCxx.cxx
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+comprehensive_example: comprehensive_example.o rust_lib
+	$(CXX) comprehensive_example.o $(LDFLAGS) -o $@
+
+comprehensive_example.o: ./c/ComprehensiveExample.cxx
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f example_program example_program.o
+	rm -f example_program example_program.o comprehensive_example comprehensive_example.o
 	cargo clean

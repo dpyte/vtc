@@ -34,7 +34,7 @@ impl From<anyhow::Error> for RuntimeError {
 impl Display for RuntimeError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			RuntimeError::FileReadError(path) => write!(f, "Failed to read file: {}", path),
+			RuntimeError::FileReadError(path) => write!(f, "Failed to read the file: {}", path),
 			RuntimeError::ParseError(msg) => write!(f, "Parse error: {}", msg),
 			RuntimeError::NamespaceNotFound(name) => write!(f, "Namespace not found: {}", name),
 			RuntimeError::VariableNotFound(name) => write!(f, "Variable not found: {}", name),

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::Formatter;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
@@ -21,7 +22,7 @@ fn extract_number(value: &Arc<Value>) -> Result<Number, String> {
 }
 
 fn extract_string(value: &Arc<Value>) -> Result<String, String> {
-	match &**value {
+	match value.deref() {
 		Value::String(s) => Ok(s.clone()),
 		_ => Err("Expected a string".to_string())
 	}

@@ -1,19 +1,30 @@
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
+use std::ops::Deref;
 use std::os::raw::{c_char, c_double, c_int};
 use std::ptr;
 use std::rc::Rc;
 use std::slice;
 
-use crate::runtime::Runtime;
-use crate::value::{Number, Value};
+use crate::runtime::Runtime as VtcRuntime;
+use crate::value::{Number, Value as VtcValue};
 
 #[repr(C)]
-pub struct CRuntime(*mut Runtime);
+pub struct Runtime {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+pub struct Value {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+pub struct CRuntime(*mut VtcRuntime);
 
 #[no_mangle]
 pub extern "C" fn runtime_new() -> CRuntime {
-    CRuntime(Box::into_raw(Box::new(Runtime::new())))
+    CRuntime(Box::into_raw(Box::new(VtcRuntime::new())))
 }
 
 #[no_mangle]
@@ -22,7 +33,7 @@ pub extern "C" fn runtime_from(path: *const c_char) -> CRuntime {
     let path_str = c_str.to_str().unwrap();
     let path_buf = std::path::PathBuf::from(path_str);
 
-    match Runtime::from_file(path_buf) {
+    match VtcRuntime::from_file(path_buf) {
         Ok(runtime) => CRuntime(Box::into_raw(Box::new(runtime))),
         Err(_) => CRuntime(ptr::null_mut()),
     }
@@ -82,7 +93,7 @@ pub extern "C" fn runtime_get_integer(
 
     match runtime.get_value(namespace, variable, &[]) {
         Ok(value) => {
-            if let Value::Number(Number::Integer(i)) = &*value {
+            if let VtcValue::Number(Number::Integer(i)) = &*value {
                 unsafe { *result = *i };
                 0
             } else {
@@ -106,7 +117,7 @@ pub extern "C" fn runtime_get_float(
 
     match runtime.get_value(namespace, variable, &[]) {
         Ok(value) => {
-            if let Value::Number(Number::Float(f)) = &*value {
+            if let VtcValue::Number(Number::Float(f)) = &*value {
                 unsafe { *result = *f };
                 0
             } else {
@@ -130,7 +141,7 @@ pub extern "C" fn runtime_get_boolean(
 
     match runtime.get_value(namespace, variable, &[]) {
         Ok(value) => {
-            if let Value::Boolean(b) = &*value {
+            if let VtcValue::Boolean(b) = &*value {
                 unsafe { *result = *b };
                 0
             } else {
@@ -146,7 +157,7 @@ pub extern "C" fn runtime_get_list(
     runtime: CRuntime,
     namespace: *const c_char,
     variable: *const c_char,
-    result: *mut *mut Value,
+    result: *mut *mut VtcValue,
     length: *mut usize,
 ) -> c_int {
     let runtime = unsafe { runtime.0.as_mut() }.unwrap();
@@ -155,14 +166,14 @@ pub extern "C" fn runtime_get_list(
 
     match runtime.get_value(namespace, variable, &[]) {
         Ok(value) => {
-            if let Value::List(list) = &*value {
+            if let VtcValue::List(list) = &*value {
                 // Clone the Vec<Value> and convert to boxed slice
-                let values: Vec<Value> = list.iter().cloned().collect();
+                let values = list.iter().map(|v| v.clone()).collect::<Vec<VtcValue>>();
                 let boxed_slice = values.into_boxed_slice();
                 let raw_ptr = Box::into_raw(boxed_slice);
                 unsafe {
-                    *result = raw_ptr as *mut Value;
-                    *length = (*raw_ptr).len();
+                    *result = raw_ptr as *mut VtcValue;
+                    *length = raw_ptr.len();
                 }
                 0
             } else {
@@ -186,8 +197,9 @@ pub extern "C" fn runtime_as_dict(
     match runtime.as_dict(namespace, variable) {
         Ok(dict) => {
             // Convert HashMap<String, Arc<Value>> to HashMap<String, Value>
-            let converted: HashMap<String, Value> =
-                dict.into_iter().map(|(k, v)| (k, (*v).clone())).collect();
+            let converted: HashMap<String, VtcValue> = dict.into_iter()
+                .map(|(k, v)| (k, v.deref().clone()))
+                .collect::<HashMap<String, VtcValue>>();
             Box::into_raw(Box::new(converted)) as *mut c_void
         }
         Err(_) => ptr::null_mut(),
@@ -212,7 +224,7 @@ pub extern "C" fn runtime_flatten_list(
             let raw_ptr = Box::into_raw(boxed_slice);
             unsafe {
                 *result = raw_ptr as *mut Value;
-                *length = (*raw_ptr).len();
+                *length = raw_ptr.len();
             }
             0
         }
@@ -239,7 +251,7 @@ pub extern "C" fn runtime_list_namespaces(
 
     unsafe {
         *result = raw_ptr as *mut *mut c_char;
-        *length = (*raw_ptr).len();
+        *length = raw_ptr.len();
     }
 
     0
@@ -267,7 +279,7 @@ pub extern "C" fn runtime_list_variables(
 
             unsafe {
                 *result = raw_ptr as *mut *mut c_char;
-                *length = (*raw_ptr).len();
+                *length = raw_ptr.len();
             }
             0
         }

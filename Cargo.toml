@@ -14,7 +14,7 @@ publish = false
 [lib]
 name = "vtc"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 nom = { version = "7.1.3" }

@@ -29,7 +29,7 @@ mod tests {
 	fn test_single_namespace_single_variable() {
 		let (mut runtime, output_path) = setup();
 
-		runtime.namespaces.insert(
+		runtime.ns_as_mut().insert(
 			Arc::new("test_namespace".to_string()),
 			{
 				let mut map = FnvHashMap::default();
@@ -56,7 +56,7 @@ mod tests {
 		let (mut runtime, output_path) = setup();
 
 		// First namespace with multiple variables
-		runtime.namespaces.insert(
+		runtime.ns_as_mut().insert(
 			Arc::new("namespace1".to_string()),
 			{
 				let mut map = FnvHashMap::default();
@@ -67,7 +67,7 @@ mod tests {
 		);
 
 		// Second namespace with a single variable
-		runtime.namespaces.insert(
+		runtime.ns_as_mut().insert(
 			Arc::new("namespace2".to_string()),
 			{
 				let mut map = FnvHashMap::default();
@@ -94,7 +94,7 @@ mod tests {
 			let lines: Vec<&str> = block.lines().collect();
 			if lines.is_empty() { continue; }
 
-			// Get namespace name without the '@' and ':'
+			// Get a namespace name without the '@' and ':'
 			let namespace = lines[0].trim_start_matches('@').trim_end_matches(':');
 			namespace_contents.insert(namespace, lines[1..].to_vec());
 		}
@@ -111,7 +111,7 @@ mod tests {
 			assert!(has_var1, "Missing var1 in namespace1");
 			assert!(has_var2, "Missing var2 in namespace1");
 		} else {
-			panic!("namespace1 not found in output");
+			panic!("namespace1 not found in the output");
 		}
 
 		// Verify namespace2
@@ -122,7 +122,7 @@ mod tests {
 
 			assert!(has_var3, "Missing var3 in namespace2");
 		} else {
-			panic!("namespace2 not found in output");
+			panic!("namespace2 not found in the output");
 		}
 	}
 
@@ -130,7 +130,7 @@ mod tests {
 	fn test_list_values() {
 		let (mut runtime, output_path) = setup();
 
-		runtime.namespaces.insert(
+		runtime.ns_as_mut().insert(
 			Arc::new("test_namespace".to_string()),
 			{
 				let mut map = FnvHashMap::default();
@@ -162,7 +162,7 @@ mod tests {
 	fn test_reference_values() {
 		let (mut runtime, output_path) = setup();
 
-		runtime.namespaces.insert(
+		runtime.ns_as_mut().insert(
 			Arc::new("test_namespace".to_string()),
 			{
 				let mut map = FnvHashMap::default();
@@ -200,7 +200,7 @@ mod tests {
 	fn test_intrinsic_values() {
 		let (mut runtime, output_path) = setup();
 
-		runtime.namespaces.insert(
+		runtime.ns_as_mut().insert(
 			Arc::new("test_namespace".to_string()),
 			{
 				let mut map = FnvHashMap::default();

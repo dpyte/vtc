@@ -32,9 +32,9 @@
 //! let value = runtime.get_value("namespace", "variable", &[]).unwrap();
 //! ```
 
-use ::std::{fmt, fs};
 use ::std::path::PathBuf;
 use ::std::sync::Arc;
+use ::std::{fmt, fs};
 
 use fnv::{FnvHashMap, FnvHashSet};
 use smallvec::SmallVec;
@@ -69,7 +69,7 @@ mod utils;
 /// * `namespaces` - A thread-safe map of namespaces to their variables
 /// * `std_lib_loader` - Loader for standard library functions
 pub struct Runtime {
-	pub namespaces: FnvHashMap<Arc<String>, FnvHashMap<Arc<String>, Arc<Value>>>,
+	namespaces: FnvHashMap<Arc<String>, FnvHashMap<Arc<String>, Arc<Value>>>,
 	std_lib_loader: StdLibLoader
 }
 
@@ -338,6 +338,14 @@ impl Runtime {
 		}
 	}
 
+	pub fn ns_as_ref(&self) -> &FnvHashMap<Arc<String>, FnvHashMap<Arc<String>, Arc<Value>>> {
+		&self.namespaces
+	}
+
+	pub fn ns_as_mut(&mut self) -> &mut FnvHashMap<Arc<String>, FnvHashMap<Arc<String>, Arc<Value>>> {
+		&mut self.namespaces
+	}
+
 	/// Creates a new empty namespace.
 	///
 	/// # Arguments
@@ -394,7 +402,6 @@ impl Runtime {
 	pub fn list_namespaces(&self) -> Vec<&Arc<String>> {
 		self.namespaces.keys().collect()
 	}
-
 
 	/// Lists all variables in a specified namespace.
 	///

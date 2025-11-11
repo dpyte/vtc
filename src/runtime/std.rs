@@ -4,8 +4,11 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use base64::{alphabet, engine::{self, general_purpose}, Engine as _};
 use fnv::FnvHashMap;
+
+#[cfg(feature = "std-crypto")]
+use base64::{alphabet, engine::{self, general_purpose}, Engine as _};
+#[cfg(feature = "std-crypto")]
 use sha2::{Digest, Sha256};
 
 use crate::value::Number;
@@ -15,7 +18,7 @@ pub type VtcFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
 pub type IntrinsicFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
 
 fn extract_number(value: &Arc<Value>) -> Result<Number, String> {
-	match &**value {
+	match value.deref() {
 		Value::Number(n) => Ok(n.clone()),
 		_ => Err("Expected a number".to_string())
 	}
@@ -33,14 +36,14 @@ mod helpers {
 	use super::*;
 
 	pub fn extract_number(value: &Arc<Value>) -> Number {
-		match &**value {
+		match value.deref() {
 			Value::Number(n) => n.clone(),
 			_ => panic!("Expected a Number value"),
 		}
 	}
 
 	pub fn extract_string(value: &Arc<Value>) -> String {
-		match &**value {
+		match value.deref() {
 			Value::String(s) => (**s).to_string(),
 			_ => panic!("Expected a String value"),
 		}
@@ -264,6 +267,7 @@ mod string_ops {
 }
 
 // Advanced operations
+#[cfg(feature = "std-crypto")]
 mod advanced_ops {
 	use super::*;
 
@@ -473,10 +477,12 @@ impl StdLibLoader {
 		loadable.insert("std_replace".to_string(), Box::new(string_ops::std_replace) as VtcFn);
 
 		// Advanced operations
-		loadable.insert("std_base64_encode".to_string(), Box::new(advanced_ops::std_base64_encode) as VtcFn);
-		loadable.insert("std_base64_decode".to_string(), Box::new(advanced_ops::std_base64_decode) as VtcFn);
-		loadable.insert("std_hash".to_string(), Box::new(advanced_ops::std_hash) as VtcFn);
-
+		#[cfg(feature = "std-crypto")]
+		{
+			loadable.insert("std_base64_encode".to_string(), Box::new(advanced_ops::std_base64_encode) as VtcFn);
+			loadable.insert("std_base64_decode".to_string(), Box::new(advanced_ops::std_base64_decode) as VtcFn);
+			loadable.insert("std_hash".to_string(), Box::new(advanced_ops::std_hash) as VtcFn);
+		}
 		// Control flow
 		loadable.insert("std_if".to_string(), Box::new(control_flow::std_if) as VtcFn);
 		loadable.insert("std_try".to_string(), Box::new(control_flow::std_try) as VtcFn);
@@ -490,7 +496,7 @@ impl StdLibLoader {
 
 	pub fn register_function(&mut self, name: String, function: VtcFn) -> Result<()> {
 		if name.starts_with("std") {
-			return Err(anyhow!("User defined functions cannot start with `std`.".to_string()))
+			return Err(anyhow!("User-defined functions cannot start with `std`.".to_string()))
 		}
 		self.loadable.insert(name, function);
 		Ok(())

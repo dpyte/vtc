@@ -20,6 +20,10 @@ impl Runtime {
         self.get_string_value(&value)
     }
 
+    pub fn get_string_or_default(&self, namespace: &str, variable: &str, default: String) -> Result<String, RuntimeError> {
+        self.get_string(namespace, variable).or_else(|_| Ok(default))
+    }
+
     pub fn to_string(&self, value: Arc<Value>) -> Result<String, RuntimeError> {
         let str_value = value.to_string();
         if str_value.len() < 2 {
@@ -51,6 +55,10 @@ impl Runtime {
         })
     }
 
+    pub fn get_integer_or_default(&self, namespace: &str, variable: &str, default: i64) -> Result<i64, RuntimeError> {
+        self.get_integer(namespace, variable).or_else(|_| Ok(default))
+    }
+
     pub fn get_float(&self, namespace: &str, variable: &str) -> Result<f64, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
             if let Value::Number(Number::Float(f)) = &**v {
@@ -59,6 +67,10 @@ impl Runtime {
                 Err(RuntimeError::TypeError("Expected float".to_string()))
             }
         })
+    }
+
+    pub fn get_float_or_default(&self, namespace: &str, variable: &str, default: f64) -> Result<f64, RuntimeError> {
+        self.get_float(namespace, variable).or_else(|_| Ok(default))
     }
 
     pub fn get_boolean(&self, namespace: &str, variable: &str) -> Result<bool, RuntimeError> {
@@ -71,6 +83,10 @@ impl Runtime {
         })
     }
 
+    pub fn get_boolean_or_default(&self, namespace: &str, variable: &str, default: bool) -> Result<bool, RuntimeError> {
+        self.get_boolean(namespace, variable).or_else(|_| Ok(default))
+    }
+
     pub fn get_list(&self, namespace: &str, variable: &str) -> Result<Vec<Value>, RuntimeError> {
         self.get_typed_value(namespace, variable, |v| {
             if let Value::List(l) = &**v {
@@ -79,6 +95,10 @@ impl Runtime {
                 Err(RuntimeError::TypeError("Expected list".to_string()))
             }
         })
+    }
+
+    pub fn get_list_or_default(&self, namespace: &str, variable: &str, default: Vec<Value>) -> Result<Vec<Value>, RuntimeError> {
+        self.get_list(namespace, variable).or_else(|_| Ok(default))
     }
 
     /// Convert list to dictionary.

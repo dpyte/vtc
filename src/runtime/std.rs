@@ -15,6 +15,8 @@ use crate::value::Number;
 use crate::value::Value;
 
 pub type VtcFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
+// pub type VtcFn = fn(&[Arc<Value>]) -> Arc<Value>;
+
 pub type IntrinsicFn = Box<dyn Fn(Vec<Arc<Value>>) -> Arc<Value> + Send + Sync>;
 
 fn extract_number(value: &Arc<Value>) -> Result<Number, String> {
